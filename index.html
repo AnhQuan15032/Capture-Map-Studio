@@ -1,0 +1,2549 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Satellite Capture Studio — Crash-Proof Ultra Edition</title>
+  <meta name="description" content="Xuất ảnh vệ tinh độ phân giải siêu cao từ bản đồ với viewfinder trực tiếp." />
+
+  <!-- Tailwind CSS v4 -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+
+  <!-- TopoJSON client: giải nén dữ liệu bờ biển Natural Earth cho mask đất/biển -->
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+
+  <!-- d3-geo: chiếu Mercator + TỰ CẮT polygon tại kinh tuyến 180° (chuẩn công nghiệp) -->
+  <script src="https://cdn.jsdelivr.net/npm/d3-array@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-geo@3"></script>
+
+  <!-- Preconnect: mở sẵn kết nối tới máy chủ tile để chụp nhanh hơn -->
+  <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
+  <link rel="preconnect" href="https://gibs.earthdata.nasa.gov" crossorigin />
+  <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin />
+  <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+  <link rel="dns-prefetch" href="https://gibs.earthdata.nasa.gov" />
+  <link rel="dns-prefetch" href="https://basemap.nationalmap.gov" />
+  <link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com" />
+  <link rel="dns-prefetch" href="https://tile.opentopomap.org" />
+  <link rel="dns-prefetch" href="https://mt0.google.com" />
+  <link rel="dns-prefetch" href="https://corsproxy.io" />
+  <link rel="dns-prefetch" href="https://api.allorigins.win" />
+  <link rel="dns-prefetch" href="https://images.weserv.nl" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    :root {
+      --app-height: 100vh;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+    html, body {
+      height: 100%;
+      height: var(--app-height);
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+    .font-mono, code { font-family: "JetBrains Mono", ui-monospace, monospace !important; }
+    #map {
+      height: 100% !important;
+      width: 100% !important;
+      background: #020617;
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+    .viewfinder-mask {
+      box-shadow: 0 0 0 9999px rgba(2, 6, 23, 0.78);
+    }
+    #viewfinder-box {
+      position: absolute;
+      transition: width 0.15s ease, height 0.15s ease, left 0.15s ease, top 0.15s ease;
+    }
+    .leaflet-control-attribution {
+      background: rgba(2, 6, 23, 0.85) !important;
+      color: #94a3b8 !important;
+      border-radius: 8px !important;
+      padding: 1px 6px !important;
+      font-size: 9px !important;
+      font-family: "JetBrains Mono", monospace !important;
+      margin: 4px !important;
+    }
+    .leaflet-control-zoom {
+      border: 1px solid rgba(255,255,255,0.15) !important;
+      border-radius: 14px !important;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.45) !important;
+    }
+    .leaflet-bar a {
+      background-color: rgba(15, 23, 42, 0.92) !important;
+      color: #e2e8f0 !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      width: 34px !important;
+      height: 34px !important;
+      line-height: 34px !important;
+    }
+    .leaflet-bar a:hover { background-color: rgba(30, 41, 59, 0.95) !important; }
+    @media (max-width: 1023.5px) {
+      .leaflet-control-zoom { margin-bottom: 168px !important; margin-right: 12px !important; }
+      .leaflet-control-attribution { margin-bottom: 168px !important; }
+    }
+    #drawer-panel {
+      transition-property: transform, translate;
+      transition-duration: 0.3s;
+      transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }
+    .lucide { stroke-width: 2; }
+    .alpha-checker {
+      background-image:
+        linear-gradient(45deg, #334155 25%, transparent 25%),
+        linear-gradient(-45deg, #334155 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #334155 75%),
+        linear-gradient(-45deg, transparent 75%, #334155 75%);
+      background-size: 10px 10px;
+      background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+      background-color: #1e293b;
+    }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(-10px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .toast-item { animation: toast-in 0.25s cubic-bezier(0.16,1,0.3,1) both; }
+    .toast-item.toast-out { opacity: 0; transform: translateY(-8px) scale(0.97); transition: all 0.25s ease; }
+    @keyframes rec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+    .rec-dot { animation: rec-pulse 1.6s ease-in-out infinite; }
+  </style>
+</head>
+<body class="relative h-full w-full overflow-hidden bg-slate-950 flex flex-col lg:flex-row">
+
+  <!-- ================= 1. BẢN ĐỒ FULL MÀN HÌNH ================= -->
+  <main class="relative flex-1 h-full w-full bg-slate-950 order-1 lg:order-2 overflow-hidden">
+    <div id="map"></div>
+
+    <!-- KHUNG NGẮM VIEWFINDER TRỰC TIẾP (định vị tuyệt đối = khớp 100% vùng chụp) -->
+    <div id="viewfinder-wrapper" class="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      <div id="viewfinder-box" class="viewfinder-mask border-2 border-cyan-400 shadow-[0_0_35px_rgba(34,211,238,0.35)] rounded-lg">
+        <!-- 4 Góc ngắm -->
+        <div class="absolute -top-1 -left-1 w-3.5 h-3.5 border-t-2 border-l-2 border-cyan-300"></div>
+        <div class="absolute -top-1 -right-1 w-3.5 h-3.5 border-t-2 border-r-2 border-cyan-300"></div>
+        <div class="absolute -bottom-1 -left-1 w-3.5 h-3.5 border-b-2 border-l-2 border-cyan-300"></div>
+        <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 border-b-2 border-r-2 border-cyan-300"></div>
+
+        <!-- Tâm chữ thập -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-40">
+          <div class="absolute top-1/2 left-0 right-0 h-[1px] bg-cyan-300"></div>
+          <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-cyan-300"></div>
+        </div>
+
+        <!-- Lưới 1/3 -->
+        <div id="grid-thirds" class="absolute inset-0 pointer-events-none opacity-25">
+          <div class="absolute top-1/3 left-0 right-0 h-[1px] border-b border-dashed border-cyan-300"></div>
+          <div class="absolute top-2/3 left-0 right-0 h-[1px] border-b border-dashed border-cyan-300"></div>
+          <div class="absolute left-1/3 top-0 bottom-0 w-[1px] border-r border-dashed border-cyan-300"></div>
+          <div class="absolute left-2/3 top-0 bottom-0 w-[1px] border-r border-dashed border-cyan-300"></div>
+        </div>
+
+        <!-- Tag độ phân giải -->
+        <div class="absolute -top-7 left-0 flex items-center gap-1.5 bg-slate-950/90 border border-cyan-400/50 px-2 py-0.5 rounded-md text-[10px] text-cyan-200 font-mono shadow whitespace-nowrap">
+          <span id="vf-ratio-tag">16:9</span>
+          <span class="text-slate-500">•</span>
+          <span id="vf-dim-tag">1920 × 1080 px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LỚP XEM TRƯỚC MASK (canvas — dùng ĐÚNG logic vẽ mask của ảnh xuất) -->
+    <canvas id="mask-overlay" class="pointer-events-none absolute inset-0 z-10" style="width:100%;height:100%"></canvas>
+
+    <!-- HUY HIỆU CHẾ ĐỘ TOÀN CẦU -->
+    <div id="world-badge" class="hidden absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+      <div class="bg-slate-950/85 border border-cyan-400/60 rounded-2xl px-6 py-4 text-center shadow-2xl backdrop-blur-md">
+        <div class="text-[10px] uppercase tracking-widest text-cyan-300 font-bold flex items-center justify-center gap-1.5">
+          <i data-lucide="earth" class="w-4 h-4"></i> Chụp Toàn Cầu
+        </div>
+        <div id="world-dim" class="text-xl font-black text-white font-mono mt-1.5">4096 × 4096 px</div>
+        <div id="world-info" class="text-[10px] text-slate-400 font-mono mt-0.5">256 tiles • z4</div>
+      </div>
+    </div>
+
+    <!-- HUD TỌA ĐỘ TRÊN CÙNG -->
+    <div class="pointer-events-none absolute top-3 left-3 right-3 z-30 flex justify-between items-start gap-2" style="padding-top: var(--safe-top);">
+      <div class="pointer-events-auto bg-slate-950/85 backdrop-blur-md border border-white/15 px-3 py-1.5 rounded-xl shadow-xl flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 rec-dot"></span>
+        <div class="text-[11px] flex items-center gap-1.5">
+          <i data-lucide="satellite" class="w-3.5 h-3.5 text-cyan-300"></i>
+          <span id="hud-source" class="font-bold text-cyan-300">Esri Clarity</span>
+          <span class="text-slate-400 font-mono" id="hud-coords">16.00°, 106.00°</span>
+        </div>
+      </div>
+
+      <div class="pointer-events-auto flex items-center gap-1.5">
+        <!-- Chuyển ngôn ngữ VI / EN -->
+        <button id="lang-btn" class="bg-slate-900/90 border border-cyan-400/40 px-2.5 py-1.5 rounded-xl text-[11px] font-black text-cyan-300 shadow-lg active:scale-95 transition font-mono tracking-wider" title="Switch language / Đổi ngôn ngữ">EN</button>
+        <!-- Nút mở drawer trên mobile -->
+        <button id="btn-open-drawer" class="lg:hidden bg-slate-900/90 border border-white/20 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 shadow-lg active:scale-95 transition">
+          <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+          <span data-i18n="settings">Cài đặt</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- THANH CÔNG CỤ NỔI Ở ĐÁY MOBILE -->
+    <div id="mobile-floating-bar" class="lg:hidden pointer-events-auto absolute bottom-3 left-3 right-3 z-30 flex flex-col gap-2" style="padding-bottom: var(--safe-bottom);">
+      <!-- Dải chọn nhanh tỉ lệ -->
+      <div class="bg-slate-950/90 backdrop-blur-md border border-white/15 p-1.5 rounded-2xl flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-2xl">
+        <button data-ratio="16:9" class="quick-ratio active shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border bg-cyan-500/20 border-cyan-400 text-cyan-200">16:9</button>
+        <button data-ratio="9:16" class="quick-ratio shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border bg-white/5 border-white/10 text-slate-300"><span data-i18n="vert">9:16 Dọc</span></button>
+        <button data-ratio="1:1" class="quick-ratio shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border bg-white/5 border-white/10 text-slate-300">1:1</button>
+        <button data-ratio="4:3" class="quick-ratio shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border bg-white/5 border-white/10 text-slate-300">4:3</button>
+        <button data-ratio="free" class="quick-ratio shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border bg-white/5 border-white/10 text-slate-300"><span data-i18n="full">Toàn màn</span></button>
+        <button id="mobile-btn-flip" class="shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white/10 border border-white/10 text-amber-300 flex items-center gap-1">
+          <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> <span data-i18n="flipShort">Xoay</span>
+        </button>
+      </div>
+
+      <!-- Nút chụp mobile -->
+      <button id="mobile-btn-capture" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-cyan-400 text-slate-950 font-black text-sm shadow-2xl flex items-center justify-center gap-2 active:scale-95 transition">
+        <i data-lucide="camera" class="w-4 h-4"></i>
+        <span id="mobile-btn-text">CHỤP 2× (TURBO)</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- ================= 2. BẢNG ĐIỀU KHIỂN (DESKTOP SIDEBAR / MOBILE DRAWER) ================= -->
+  <aside id="drawer-panel" class="fixed inset-x-0 bottom-0 z-40 lg:static lg:z-30 w-full lg:w-[420px] shrink-0 bg-slate-900/95 lg:bg-slate-900/95 border-t lg:border-t-0 lg:border-r border-white/15 flex flex-col max-h-[85vh] lg:max-h-full rounded-t-3xl lg:rounded-none shadow-2xl translate-y-full lg:translate-y-0 order-2 lg:order-1 overflow-hidden">
+
+    <!-- Header Drawer -->
+    <div class="p-4 border-b border-white/10 bg-slate-950/60 relative">
+      <div class="lg:hidden w-10 h-1 bg-white/20 rounded-full mx-auto mb-2"></div>
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400/20 text-amber-300 border border-amber-400/40 flex items-center gap-1 shrink-0">
+            <i data-lucide="zap" class="w-3 h-3"></i> Scale x1 — x64 Engine
+          </span>
+          <span class="text-xs text-slate-400 font-mono truncate" id="speed-indicator" data-i18n="ready">Sẵn sàng</span>
+        </div>
+        <button id="btn-close-drawer" class="lg:hidden p-1.5 rounded-xl bg-white/10 text-slate-300 text-xs font-bold px-2.5 flex items-center gap-1 shrink-0">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i> <span data-i18n="close">Đóng</span>
+        </button>
+      </div>
+      <h1 class="text-base font-bold text-white mt-1.5 hidden lg:flex items-center gap-2">
+        <i data-lucide="satellite" class="w-5 h-5 text-cyan-300"></i> Satellite Studio Pro
+      </h1>
+    </div>
+
+    <!-- Nội dung cài đặt cuộn -->
+    <div class="p-4 space-y-3.5 overflow-y-auto flex-1 pb-8 lg:pb-4">
+
+      <!-- 1. HỆ THỐNG SCALE TỪ x1 ĐẾN x64 -->
+      <div class="bg-slate-950/70 p-3.5 rounded-2xl border border-white/10 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="sharpness">Hệ số độ nét (x1 – x64)</label>
+          <span id="scale-badge" class="text-xs text-amber-300 font-bold">2× Nét</span>
+        </div>
+
+        <select id="scale-select" class="w-full bg-slate-900 border border-cyan-400/40 rounded-xl px-3 py-2 text-sm text-cyan-200 outline-none font-bold">
+          <option value="1" data-i18n="so1">1× (Chuẩn màn hình - Cực nhanh)</option>
+          <option value="1.5" data-i18n="so2">1.5× (Sắc nét HD+)</option>
+          <option value="2" selected data-i18n="so3">2× (2K / 4K Ultra HD)</option>
+          <option value="3" data-i18n="so4">3× (3K Siêu nét)</option>
+          <option value="4" data-i18n="so5">4× (8K Ultra Sharp)</option>
+          <option value="5" data-i18n="so6">5× (10K Master)</option>
+          <option value="6" data-i18n="so7">6× (12K Chi tiết cao)</option>
+          <option value="8" data-i18n="so8">8× (16K Siêu phân giải)</option>
+          <option value="10" data-i18n="so9">10× (20K Extreme)</option>
+          <option value="12" data-i18n="so10">12× (24K Master Pro)</option>
+          <option value="16" data-i18n="so11">16× (Siêu siêu nét)</option>
+          <option value="24" data-i18n="so12">24× (Khổng lồ Ultra)</option>
+          <option value="32" data-i18n="so13">32× (Siêu khủng 32K)</option>
+          <option value="48" data-i18n="so14">48× (Extreme Monster)</option>
+          <option value="64" data-i18n="so15">64× (Hyper Max 64K)</option>
+          <option value="96">96× (Insane 96K)</option>
+          <option value="128">128× (Maximum 128K)</option>
+        </select>
+
+        <!-- Quick Scale Buttons -->
+        <div id="quick-scale-grid" class="grid grid-cols-4 gap-1.5 pt-1 transition-opacity">
+          <button data-setscale="2" class="quick-scale-btn py-1 rounded-lg text-xs font-bold bg-cyan-500/20 border border-cyan-400/60 text-cyan-200">2×</button>
+          <button data-setscale="4" class="quick-scale-btn py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300">4×</button>
+          <button data-setscale="8" class="quick-scale-btn py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300">8×</button>
+          <button data-setscale="16" class="quick-scale-btn py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300">16×</button>
+          <button data-setscale="24" class="quick-scale-btn py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300">24×</button>
+          <button data-setscale="32" class="quick-scale-btn py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300">32×</button>
+          <button data-setscale="48" class="quick-scale-btn py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300">48×</button>
+          <button data-setscale="64" class="quick-scale-btn py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300">64×</button>
+        </div>
+
+        <!-- Kích thước tùy chỉnh (đè Scale) -->
+        <div class="pt-1 space-y-1.5 border-t border-white/5">
+          <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer pt-1.5">
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="ruler" class="w-3.5 h-3.5 text-cyan-400"></i>
+              <span data-i18n="customResTitle">Kích thước tùy chỉnh</span>
+              <span class="text-slate-500 text-[10px] font-mono" data-i18n="customResHint">bỏ qua Scale</span>
+            </span>
+            <input type="checkbox" id="custom-res-check" class="w-4 h-4 accent-cyan-400 cursor-pointer" />
+          </label>
+          <div id="custom-res-row" class="hidden items-center gap-1.5">
+            <input type="number" id="custom-w" min="64" max="16384" step="2" value="3840" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
+            <span class="text-slate-500 text-xs font-mono shrink-0">×</span>
+            <input type="number" id="custom-h" min="64" max="16384" step="2" value="2160" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
+          </div>
+          <div id="custom-presets" class="hidden flex-wrap gap-1">
+            <button data-cw="1920" data-ch="1080" class="custom-preset px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:text-cyan-200 transition">1080p</button>
+            <button data-cw="2560" data-ch="1440" class="custom-preset px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:text-cyan-200 transition">1440p</button>
+            <button data-cw="3840" data-ch="2160" class="custom-preset px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:text-cyan-200 transition">4K</button>
+            <button data-cw="7680" data-ch="4320" class="custom-preset px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:text-cyan-200 transition">8K</button>
+            <button data-cw="1080" data-ch="1920" class="custom-preset px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:text-cyan-200 transition">Story</button>
+            <button data-cw="1000" data-ch="1000" class="custom-preset px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:text-cyan-200 transition">1:1</button>
+          </div>
+        </div>
+
+        <!-- Giới hạn an toàn (có thể tắt) -->
+        <label class="flex items-center justify-between pt-1.5 border-t border-white/5 text-xs text-slate-300 cursor-pointer">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> <span data-i18n="safetyGpu">Giới hạn an toàn GPU</span>
+            <span class="text-slate-500 text-[10px] font-mono" data-i18n="safetyHint">chống sập tab</span>
+          </span>
+          <input type="checkbox" id="safety-check" checked class="w-4 h-4 accent-emerald-400 cursor-pointer" />
+        </label>
+
+        <!-- Cảnh báo nếu scale cao hoặc tắt giới hạn an toàn -->
+        <div id="scale-warning" class="hidden p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200 leading-tight flex gap-1.5">
+          <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0 mt-px"></i>
+          <span id="scale-warning-text"><b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.</span>
+        </div>
+
+        <!-- Chế độ Turbo -->
+        <label class="flex items-center justify-between pt-1 border-t border-white/5 text-xs text-slate-300 cursor-pointer">
+          <span class="flex items-center gap-1.5"><i data-lucide="rocket" class="w-3.5 h-3.5 text-amber-400"></i> <span data-i18n="turboMode">Chế độ Turbo</span> <span class="text-amber-300/80 font-mono text-[10px]" data-i18n="turboFast">≈4× nhanh</span></span>
+          <input type="checkbox" id="turbo-check" checked class="w-4 h-4 accent-amber-400 cursor-pointer" />
+        </label>
+
+        <!-- Thông số ảnh xuất -->
+        <div class="p-2.5 rounded-xl bg-black/50 border border-white/5 text-[11px] space-y-1 text-slate-300">
+          <div class="flex justify-between">
+            <span data-i18n="outSize">Kích thước ảnh xuất:</span>
+            <span id="info-res" class="text-cyan-300 font-mono font-bold">1920 × 1080 px</span>
+          </div>
+          <div class="flex justify-between">
+            <span data-i18n="outMp">Tổng số megapixel:</span>
+            <span id="info-mp" class="text-amber-300 font-mono font-bold">2.07 MP</span>
+          </div>
+          <div class="flex justify-between">
+            <span data-i18n="outTiles">Số mảnh tile cần tải:</span>
+            <span id="info-tiles" class="text-emerald-300 font-mono font-bold">16 tiles</span>
+          </div>
+          <div class="flex justify-between">
+            <span data-i18n="outCache">Bộ đệm tile (RAM):</span>
+            <span id="info-cache" class="text-fuchsia-300 font-mono font-bold">0 tiles</span>
+          </div>
+          <div class="flex justify-between">
+            <span data-i18n="outCap">Trần an toàn thiết bị:</span>
+            <span id="info-cap" class="text-slate-400 font-mono">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. NGUỒN BẢN ĐỒ VỆ TINH -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-white/10 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <label class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="srcTitle">Nguồn ảnh vệ tinh</label>
+          <span class="text-[10px] text-slate-500 font-mono" id="provider-count">10</span>
+        </div>
+        <input id="provider-search" data-i18n-ph="srcSearchPh" placeholder="Tìm provider..." class="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-400/50 transition" />
+        <div id="provider-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-0.5"></div>
+        <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
+          <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
+          <span data-i18n-html="srcNote">Đã thêm toàn bộ <b>nguồn vệ tinh công khai / không cần key</b> khả dụng ngay. Các dịch vụ thương mại yêu cầu token riêng (Mapbox, ArcGIS Basemap API mới, MapTiler...) không thể bật sẵn nếu không có khóa truy cập của bạn.</span>
+        </p>
+        <div class="pt-2 border-t border-white/5 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <label class="text-[11px] font-bold text-white uppercase tracking-wider" data-i18n="srcCustomTitle">Provider tùy chỉnh (XYZ URL)</label>
+            <span class="text-[10px] text-slate-500 font-mono">{z}/{x}/{y}</span>
+          </div>
+          <input id="custom-provider-name" data-i18n-ph="srcCustomNamePh" placeholder="Tên provider" class="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-400/50 transition" />
+          <input id="custom-provider-url" data-i18n-ph="srcCustomUrlPh" placeholder="https://.../{z}/{x}/{y}.png" class="w-full bg-slate-900 border border-cyan-400/25 rounded-xl px-3 py-2 text-[11px] font-mono text-cyan-200 outline-none focus:border-cyan-400/60 transition" />
+          <div class="flex items-center gap-2">
+            <div class="flex-1">
+              <label class="text-[10px] text-slate-500" data-i18n="srcCustomMaxZoom">Zoom tối đa</label>
+              <input id="custom-provider-maxzoom" type="number" min="1" max="30" value="22" class="mt-1 w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-400/50 transition" />
+            </div>
+            <label class="flex items-center gap-2 text-xs text-slate-300 mt-5 cursor-pointer shrink-0">
+              <input id="custom-provider-cors" type="checkbox" checked class="w-4 h-4 accent-cyan-400 cursor-pointer" />
+              <span data-i18n="srcCustomCors">CORS OK</span>
+            </label>
+          </div>
+          <button id="btn-apply-custom-provider" class="w-full py-2 rounded-xl bg-cyan-500/15 border border-cyan-400/40 text-cyan-200 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-cyan-500/25 transition active:scale-[0.98]">
+            <i data-lucide="plug-zap" class="w-3.5 h-3.5"></i>
+            <span data-i18n="srcCustomApply">Áp dụng provider tùy chỉnh</span>
+          </button>
+          <p class="text-[10px] text-slate-500 leading-tight" data-i18n-html="srcCustomHelp">Dán URL tile kiểu <code>https://.../{z}/{x}/{y}.png</code>. Nếu provider cần token, cứ dán token ngay trong URL.</p>
+        </div>
+        <label class="flex items-center justify-between pt-1.5 border-t border-white/5 text-xs text-slate-300 cursor-pointer">
+          <span class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> <span data-i18n="proxyToggle">Proxy CORS cho nguồn bị chặn</span></span>
+          <input type="checkbox" id="proxy-check" checked class="w-4 h-4 accent-cyan-400 cursor-pointer" />
+        </label>
+      </div>
+
+      <!-- 3. TỈ LỆ KHUNG HÌNH (DESKTOP) -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-white/10 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="ratioTitle">Tỉ lệ khung hình</label>
+          <button id="desktop-btn-flip" class="text-[11px] px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-cyan-300 transition flex items-center gap-1">
+            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> <span data-i18n="flip">Đảo chiều</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-1.5" id="ratio-buttons-grid">
+          <button data-ratio="16:9" class="ratio-btn active p-2 rounded-xl text-xs border text-center bg-cyan-500/20 border-cyan-400 text-cyan-100 font-bold">16 : 9</button>
+          <button data-ratio="9:16" class="ratio-btn p-2 rounded-xl text-xs border text-center bg-white/5 border-white/5 text-slate-300">9 : 16</button>
+          <button data-ratio="1:1" class="ratio-btn p-2 rounded-xl text-xs border text-center bg-white/5 border-white/5 text-slate-300">1 : 1</button>
+          <button data-ratio="4:3" class="ratio-btn p-2 rounded-xl text-xs border text-center bg-white/5 border-white/5 text-slate-300">4 : 3</button>
+          <button data-ratio="21:9" class="ratio-btn p-2 rounded-xl text-xs border text-center bg-white/5 border-white/5 text-slate-300">21 : 9</button>
+          <button data-ratio="free" class="ratio-btn p-2 rounded-xl text-xs border text-center bg-white/5 border-white/5 text-slate-300"><span data-i18n="full">Toàn màn</span></button>
+        </div>
+
+        <label class="flex items-center justify-between pt-1.5 border-t border-white/5 text-xs text-slate-300 cursor-pointer">
+          <span class="flex items-center gap-1.5"><i data-lucide="grid-3x3" class="w-3.5 h-3.5 text-cyan-400"></i> <span data-i18n="thirds">Lưới căn bố cục 1/3</span></span>
+          <input type="checkbox" id="check-thirds" checked class="w-4 h-4 accent-cyan-400 cursor-pointer" />
+        </label>
+      </div>
+
+      <!-- 3b. VÙNG CHỤP & PHÉP CHIẾU -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-white/10 space-y-2">
+        <label class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="areaTitle">Vùng chụp</label>
+        <div class="grid grid-cols-3 gap-1.5" id="area-buttons">
+          <button data-area="viewport" class="area-btn active p-2 rounded-xl text-xs border bg-cyan-500/20 border-cyan-400 text-cyan-100 font-bold flex flex-col items-center gap-1">
+            <i data-lucide="scan" class="w-4 h-4"></i> <span data-i18n="areaView">Khung ngắm</span>
+          </button>
+          <button data-area="world" class="area-btn p-2 rounded-xl text-xs border bg-white/5 border-white/10 text-slate-300 flex flex-col items-center gap-1" title="Web Mercator">
+            <i data-lucide="earth" class="w-4 h-4"></i> <span data-i18n="areaWorld">Toàn cầu vuông</span>
+          </button>
+          <button data-area="equi" class="area-btn p-2 rounded-xl text-[10px] border bg-white/5 border-white/10 text-slate-300 flex flex-col items-center gap-1 text-center leading-tight" title="Equirectangular EPSG:4326">
+            <i data-lucide="map" class="w-4 h-4"></i> <span data-i18n="areaEqui">Toàn cầu 2:1<br>(Không giãn)</span>
+          </button>
+        </div>
+        <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
+          <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
+          <span id="area-note" data-i18n-html="areaWorldNote"><b>Toàn cầu vuông (Web Mercator):</b> xuất trọn thế giới vuông ±85°. Scale 16× = 4096px. Bị kéo giãn mạnh ở vùng cực (phù hợp với bản đồ web).</span>
+        </p>
+      </div>
+
+      <!-- 4. KHU VỰC NHANH -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-white/10 space-y-1.5">
+        <label class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="regionTitle">Bay nhanh đến khu vực</label>
+        <div class="flex flex-wrap gap-1.5" id="region-buttons">
+          <button data-loc="vietnam" class="px-2.5 py-1 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-xs text-cyan-200 flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> <span data-i18n="rVN">Việt Nam</span></button>
+          <button data-loc="asia" class="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 flex items-center gap-1"><i data-lucide="globe" class="w-3 h-3"></i> <span data-i18n="rAsia">Châu Á</span></button>
+          <button data-loc="africa" class="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 flex items-center gap-1"><i data-lucide="sun" class="w-3 h-3"></i> <span data-i18n="rAfrica">Châu Phi</span></button>
+          <button data-loc="europe" class="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 flex items-center gap-1"><i data-lucide="landmark" class="w-3 h-3"></i> <span data-i18n="rEU">Châu Âu</span></button>
+          <button data-loc="world" class="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 flex items-center gap-1"><i data-lucide="earth" class="w-3 h-3"></i> <span data-i18n="rWorld">Toàn cầu</span></button>
+        </div>
+      </div>
+
+      <!-- 4b. BỘ LỌC ĐẤT LIỀN / BIỂN -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-white/10 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="maskTitle">Bộ lọc vùng chụp</label>
+          <span id="mask-status" class="text-[10px] font-mono text-slate-500">Tắt</span>
+        </div>
+
+        <div class="grid grid-cols-5 gap-1" id="mask-buttons">
+          <button data-mask="all" class="mask-btn active p-2 rounded-xl text-xs border bg-cyan-500/20 border-cyan-400 text-cyan-100 font-bold flex flex-col items-center gap-1">
+            <i data-lucide="layers" class="w-4 h-4"></i> <span data-i18n="maskAll">Tất cả</span>
+          </button>
+          <button data-mask="land" class="mask-btn p-2 rounded-xl text-xs border bg-white/5 border-white/10 text-slate-300 flex flex-col items-center gap-1">
+            <i data-lucide="mountain" class="w-4 h-4"></i> <span data-i18n="maskLand">Đất liền</span>
+          </button>
+          <button data-mask="ocean" class="mask-btn p-2 rounded-xl text-xs border bg-white/5 border-white/10 text-slate-300 flex flex-col items-center gap-1">
+            <i data-lucide="waves" class="w-4 h-4"></i> <span data-i18n="maskOcean">Biển</span>
+          </button>
+          <button data-mask="combo" class="mask-btn p-2 rounded-xl text-[11px] border bg-white/5 border-white/10 text-slate-300 flex flex-col items-center gap-1" title="Satellite land + flat ocean color">
+            <i data-lucide="map" class="w-4 h-4"></i> <span data-i18n="maskCombo">Kết hợp</span>
+          </button>
+          <button data-mask="blank" class="mask-btn p-2 rounded-xl text-[11px] border bg-white/5 border-white/10 text-slate-300 flex flex-col items-center gap-1" title="Black land / white sea silhouette">
+            <i data-lucide="binary" class="w-4 h-4"></i> <span data-i18n="maskBlank">Trắng</span>
+          </button>
+        </div>
+
+        <!-- Bảng màu biển (chỉ hiện ở chế độ Kết hợp) -->
+        <div id="ocean-color-row" class="hidden items-center gap-1.5 pt-1">
+          <button data-oceancolor="#062a45" class="ocean-swatch w-7 h-7 rounded-lg border-2 border-cyan-400 shadow-inner transition hover:scale-110" style="background:#062a45" title="Hải quân"></button>
+          <button data-oceancolor="#031521" class="ocean-swatch w-7 h-7 rounded-lg border-2 border-transparent transition hover:scale-110" style="background:#031521" title="Vực thẳm"></button>
+          <button data-oceancolor="#0b5563" class="ocean-swatch w-7 h-7 rounded-lg border-2 border-transparent transition hover:scale-110" style="background:#0b5563" title="Xanh mòng két"></button>
+          <button data-oceancolor="#0e3a5f" class="ocean-swatch w-7 h-7 rounded-lg border-2 border-transparent transition hover:scale-110" style="background:#0e3a5f" title="Đại dương"></button>
+          <label class="relative w-7 h-7 rounded-lg border-2 border-transparent overflow-hidden cursor-pointer hover:scale-110 transition" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Màu tùy chọn">
+            <input type="color" id="ocean-color-custom" value="#062a45" class="absolute inset-0 opacity-0 cursor-pointer" />
+          </label>
+          <span id="ocean-color-hex" class="ml-auto text-[10px] font-mono text-slate-400">#062a45</span>
+        </div>
+
+        <select id="mask-detail" class="w-full bg-slate-900 border border-white/20 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none font-medium">
+          <option value="110m" data-i18n="md110">Bờ biển thô 110m (nhẹ, tải nhanh)</option>
+          <option value="50m" selected data-i18n="md50">Bờ biển chuẩn 50m (khuyên dùng)</option>
+          <option value="10m" data-i18n="md10">Bờ biển chi tiết 10m (nặng ~4MB)</option>
+        </select>
+
+        <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+          <span class="flex items-center gap-1.5"><i data-lucide="eye" class="w-3.5 h-3.5 text-cyan-400"></i> <span data-i18n="maskPreview">Xem trước vùng cắt trên bản đồ</span></span>
+          <input type="checkbox" id="mask-preview-check" checked class="w-4 h-4 accent-cyan-400 cursor-pointer" />
+        </label>
+
+        <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
+          <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
+          <span data-i18n-html="maskNote">Vùng bị loại bỏ sẽ <b>trong suốt</b> nên ảnh tự chuyển sang PNG. Dữ liệu Natural Earth chính xác ở mức khu vực — không phải mức đường phố.</span>
+        </p>
+
+        <!-- Xuất 2 lớp khớp pixel cho chỉnh sửa video -->
+        <button id="btn-dual-export" class="w-full py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-500/25 transition active:scale-[0.98]">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i> <span data-i18n="dualBtn">Xuất 2 lớp khớp pixel (Biển + Đất liền)</span>
+        </button>
+
+        <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
+          <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
+          <span data-i18n-html="dualNote">Chỉnh sửa video (CapCut...)? Dùng nút <b>Xuất 2 lớp</b> — biển & đất tách từ cùng một khung nên chồng lên nhau khớp tuyệt đối. Chụp riêng 2 lần sẽ luôn bị lệch.</span>
+        </p>
+      </div>
+
+      <!-- 5. ĐỊNH DẠNG FILE -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-white/10 space-y-2">
+        <label class="text-xs font-bold text-white uppercase tracking-wider" data-i18n="formatTitle">Định dạng ảnh xuất</label>
+        <select id="format-select" class="w-full bg-slate-900 border border-white/20 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none font-medium">
+          <option value="jpeg" selected data-i18n="fmtJpeg">JPEG Turbo (Siêu tốc - Dung lượng nhẹ)</option>
+          <option value="png" data-i18n="fmtPng">PNG Lossless (Gốc không nén - Dung lượng lớn)</option>
+        </select>
+      </div>
+
+      <!-- TIẾN TRÌNH XUẤT ẢNH -->
+      <div id="progress-box" class="hidden p-3 rounded-2xl bg-slate-950 border border-white/10 text-xs space-y-2">
+        <div class="flex justify-between text-[11px] text-slate-300 gap-2">
+          <span id="status-text" class="truncate">Đang xử lý...</span>
+          <span id="status-pct" class="font-mono text-amber-300 font-bold shrink-0">0%</span>
+        </div>
+        <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+          <div id="progress-bar" class="h-full bg-gradient-to-r from-amber-400 to-cyan-400 w-0 transition-all duration-75"></div>
+        </div>
+      </div>
+
+      <!-- NÚT CHỤP DESKTOP -->
+      <button id="desktop-btn-capture" class="hidden lg:flex w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-cyan-400 hover:brightness-110 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 transition active:scale-[0.98] items-center justify-center gap-2">
+        <i data-lucide="camera" class="w-4 h-4"></i>
+        <span id="desktop-btn-text" data-i18n="captureBtn">XUẤT ẢNH VIEWFINDER (TURBO)</span>
+      </button>
+
+      <!-- DANH SÁCH ẢNH VỪA CHỤP -->
+      <div class="space-y-2 pt-2 border-t border-white/10">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="image" class="w-3.5 h-3.5 text-cyan-300"></i> <span data-i18n="shotsTitle">Ảnh vừa xuất</span></span>
+          <span id="snap-count" class="text-slate-400">0 ảnh</span>
+        </div>
+        <div id="snapshots-list" class="space-y-2 max-h-40 overflow-y-auto pr-0.5">
+          <div class="text-center py-3 border border-dashed border-white/10 rounded-xl text-xs text-slate-500" data-i18n="shotsEmpty">
+            Chưa có ảnh nào.
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-wrap" class="fixed top-3 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center pointer-events-none w-[min(92vw,420px)]"></div>
+
+  <!-- ================= JAVASCRIPT ENGINE ================= -->
+  <script>
+    'use strict';
+
+    /* ============================================================
+     * 0. TRẠNG THÁI TOÀN CỤC (khai báo TRƯỚC mọi hàm khởi tạo
+     *    để tránh lỗi TDZ "Cannot access before initialization")
+     * ============================================================ */
+    const $ = (id) => document.getElementById(id);
+
+    let currentRatio = '16:9';
+    let currentScale = 2;
+    let currentFormat = 'jpeg';
+    let currentSourceKey = 'esri';
+    let useProxy = true;
+    let isCapturing = false;
+
+    /* ============================================================
+     * 0b. I18N — TIẾNG VIỆT / ENGLISH
+     * ============================================================ */
+    const STRINGS = {
+      vi: {
+        settings: 'Cài đặt', close: 'Đóng', ready: 'Sẵn sàng',
+        sharpness: 'Hệ số độ nét (x1 – x64)',
+        so1: '1× (Chuẩn màn hình - Cực nhanh)', so2: '1.5× (Sắc nét HD+)', so3: '2× (2K / 4K Ultra HD)', so4: '3× (3K Siêu nét)',
+        so5: '4× (8K Ultra Sharp)', so6: '5× (10K Master)', so7: '6× (12K Chi tiết cao)', so8: '8× (16K Siêu phân giải)',
+        so9: '10× (20K Extreme)', so10: '12× (24K Master Pro)', so11: '16× (Siêu siêu nét)', so12: '24× (Khổng lồ Ultra)',
+        so13: '32× (Siêu khủng 32K)', so14: '48× (Extreme Monster)', so15: '64× (Hyper Max 64K)',
+        turboMode: 'Chế độ Turbo', turboFast: '≈4× nhanh',
+        customResTitle: 'Kích thước tùy chỉnh', customResHint: 'bỏ qua Scale',
+        btnCaptureCustom: 'CHỤP {w}×{h}',
+        toastCustomOn: '<b>Kích thước tùy chỉnh:</b> ảnh xuất đúng {w}×{h}px bất kể Scale — khung ngắm tự đổi theo tỉ lệ này.',
+        toastCustomOff: 'Đã tắt kích thước tùy chỉnh — quay về hệ số Scale.',
+        safetyGpu: 'Giới hạn an toàn GPU', safetyHint: 'chống sập tab',
+        warnSuper: '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.',
+        warnUnsafe: '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.',
+        outSize: 'Kích thước ảnh xuất:', outMp: 'Tổng số megapixel:', outTiles: 'Số mảnh tile cần tải:',
+        outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'TẮT — rủi ro cao',
+        srcTitle: 'Nguồn ảnh vệ tinh', srcSubEsri: 'CORS OK — xuất ổn định 100%',
+        srcSubProxy: 'Proxy CORS + prefetch nhẹ', srcSubOsm: 'Bản đồ giao thông',
+        srcSubFirefly: 'Esri tông điện ảnh / night style', srcSubUsgs: 'USGS ảnh vệ tinh công khai', srcSubUsgsTopo: 'USGS ảnh vệ tinh + topo / nhãn',
+        srcSubNasaBlue: 'NASA nền toàn cầu tĩnh, rất nhẹ', srcSubNasaTerra: 'NASA VIIRS true color (không sọc)', srcSubNasaNight: 'NASA Trái Đất ban đêm',
+        srcSubEsriTopo: 'Esri địa hình / tham chiếu', srcSubEsriStreet: 'Esri đường phố toàn cầu', srcSubEsriNatGeo: 'Esri phong cách National Geographic', srcSubEsriDark: 'Esri dark canvas', srcSubEsriLight: 'Esri light canvas',
+        srcSubGoogleSat: 'Google ảnh vệ tinh không nhãn', srcSubGoogleRoad: 'Google bản đồ đường phố', srcSubGoogleTerrain: 'Google terrain / relief',
+        srcSubCartoDark: 'CARTO dark basemap', srcSubCartoLight: 'CARTO light basemap', srcSubOpenTopo: 'OpenTopoMap địa hình công khai', srcSubCustom: 'Provider tùy chỉnh do bạn nhập',
+        srcNote: 'Đã thêm toàn bộ <b>nguồn vệ tinh / bản đồ công khai không cần key</b> khả dụng ngay, cộng thêm chế độ <b>Custom XYZ URL</b> để bạn tự dán provider khác. Các dịch vụ thương mại yêu cầu token riêng (Mapbox, ArcGIS Basemap API mới, MapTiler...) không thể bật sẵn nếu không có khóa truy cập của bạn.',
+        srcSearchPh: 'Tìm provider...', srcCustomTitle: 'Provider tùy chỉnh (XYZ URL)', srcCustomNamePh: 'Tên provider', srcCustomUrlPh: 'https://.../{z}/{x}/{y}.png', srcCustomMaxZoom: 'Zoom tối đa', srcCustomCors: 'CORS OK', srcCustomApply: 'Áp dụng provider tùy chỉnh', srcCustomHelp: 'Dán URL tile kiểu <code>https://.../{z}/{x}/{y}.png</code>. Nếu provider cần token, cứ dán token ngay trong URL.',
+        toastCustomProviderApplied: '<b>Đã thêm provider tùy chỉnh:</b> {name}', toastCustomProviderInvalid: 'URL provider không hợp lệ. Cần chứa ít nhất <code>{z}</code>, <code>{x}</code>, <code>{y}</code>.',
+        proxyToggle: 'Proxy CORS cho nguồn bị chặn',
+        ratioTitle: 'Tỉ lệ khung hình', flip: 'Đảo chiều', full: 'Toàn màn', thirds: 'Lưới căn bố cục 1/3',
+        areaTitle: 'Vùng chụp', areaView: 'Khung ngắm', areaWorld: 'Toàn cầu vuông', areaEqui: 'Toàn cầu 2:1<br>(Không giãn)',
+        areaWorldNote: '<b>Toàn cầu vuông (Web Mercator):</b> xuất trọn thế giới vuông ±85°. Phép chiếu chuẩn của web, bị kéo giãn mạnh ở vùng cực.',
+        areaEquiNote: '<b>Toàn cầu phẳng 2:1 (Equirectangular):</b> xuất ảnh tỷ lệ chuẩn 2:1 (±90°). Giữ đúng tỷ lệ thực ở các cực, lý tưởng làm texture 3D (Blender/Unity). Rất nặng!',
+        areaViewNote: '<b>Khung ngắm:</b> xuất đúng khu vực bạn đang nhìn thấy trên màn hình.',
+        maskTitle: 'Bộ lọc vùng chụp', maskAll: 'Tất cả', maskLand: 'Đất liền', maskOcean: 'Biển', maskCombo: 'Kết hợp', maskBlank: 'Trắng',
+        md110: 'Bờ biển thô 110m (nhẹ, tải nhanh)', md50: 'Bờ biển chuẩn 50m (khuyên dùng)', md10: 'Bờ biển chi tiết 10m (nặng ~4MB)',
+        maskPreview: 'Xem trước vùng cắt trên bản đồ',
+        maskNote: 'Vùng bị loại bỏ sẽ <b>trong suốt</b> nên ảnh tự chuyển sang PNG. Dữ liệu Natural Earth chính xác ở mức khu vực — không phải mức đường phố.',
+        dualBtn: 'Xuất 2 lớp khớp pixel (Biển + Đất liền)',
+        dualNote: 'Chỉnh sửa video (CapCut...)? Dùng nút <b>Xuất 2 lớp</b> — biển & đất tách từ cùng một khung nên chồng lên nhau khớp tuyệt đối. Chụp riêng 2 lần sẽ luôn bị lệch.',
+        stOff: 'Tắt', stLand: 'Đất liền', stOcean: 'Biển', stCombo: 'Kết hợp', stBlankLabel: 'Trắng',
+        stBlankRun: 'Đang vẽ bản đồ trắng...',
+        regionTitle: 'Bay nhanh đến khu vực', rVN: 'Việt Nam', rAsia: 'Châu Á', rAfrica: 'Châu Phi', rEU: 'Châu Âu', rWorld: 'Toàn cầu',
+        formatTitle: 'Định dạng ảnh xuất',
+        fmtJpeg: 'JPEG Turbo (Siêu tốc - Dung lượng nhẹ)', fmtPng: 'PNG Lossless (Gốc không nén - Dung lượng lớn)',
+        captureBtn: 'XUẤT ẢNH VIEWFINDER (TURBO)',
+        shotsTitle: 'Ảnh vừa xuất', shotsEmpty: 'Chưa có ảnh nào.', shotsUnit: 'ảnh', download: 'Tải',
+        vert: '9:16 Dọc', flipShort: 'Xoay',
+        btnCapture: 'CHỤP {s}× (TURBO)', exporting: 'ĐANG XUẤT {p}%', dualPct: '2 LỚP {p}%',
+        badgeStd: '{s}× Nét', badge8k: '{s}× 8K/16K', badgeUltra: '{s}× Ultra', badgeHyper: '{s}× Hyper',
+        stInit: 'Khởi tạo engine {s}×...', stProbe: 'Đang dò proxy CORS nhanh nhất...',
+        stTiles: 'Đang ghép: {d}/{tot} tiles (z{z})...', stTilesCache: 'Đang ghép: {d}/{tot} • cache {c}',
+        stCutLand: 'Đang cắt vùng đất liền...', stCutOcean: 'Đang cắt vùng biển...', stComboRun: 'Đang phủ màu biển...',
+        stDualInit: 'Xuất 2 lớp: khởi tạo...', stDualTiles: '2 lớp: {d}/{tot} tiles...', stDualSplit: 'Đang tách Biển / Đất liền...',
+        stDone: 'Xong trong {d}s — {m} MB',
+        stMaskLoad: 'Đang tải bờ biển...', stMaskErr: 'Lỗi tải dữ liệu',
+        finCors: 'Lỗi CORS', finMem: 'Lỗi bộ nhớ', finProxy: 'Proxy quá tải — bấm chụp lại',
+        toastProxyWarn: 'Nguồn <b>{name}</b> chặn CORS. Hãy bật "Proxy CORS" để xuất được ảnh.',
+        toastTurboOn: '<b>Turbo bật:</b> tối đa ~320 tiles/lần chụp, nhanh hơn khoảng 4 lần.',
+        toastTurboOff: '<b>Turbo tắt:</b> chế độ Max Detail — nhiều tile hơn, sắc nét tối đa.',
+        toastSafetyOff: '<b>Đã tắt giới hạn an toàn GPU.</b> Kích thước canvas giờ theo đúng Scale (tối đa 16384px) — vượt RAM thiết bị sẽ sập tab.',
+        toastSafetyOn: 'Đã bật lại giới hạn an toàn GPU theo phần cứng thiết bị.',
+        toastPng: 'Đã chuyển sang <b>PNG</b> để giữ vùng trong suốt (JPEG không hỗ trợ alpha).',
+        toast10m: 'Bờ biển 10m nặng ~4MB, lần tải đầu có thể mất vài giây.',
+        toastWorld: 'Chế độ <b>Toàn cầu</b>: độ phân giải do Scale quyết định (16× = 4096px, 32× = 8192px desktop).',
+        toastRuntime: 'Lỗi runtime: {m}',
+        toastProxyDead: '<b>Cả 3 proxy CORS đều không phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri Clarity.',
+        toastTooManyFail: '<b>{f}/{tot} tiles thất bại</b> — proxy CORS đang quá tải nên đã hủy xuất. Bấm chụp lại: engine sẽ tự đo & đổi sang proxy khác.',
+        toastSomeFail: '{f}/{tot} tiles tải thất bại (mạng yếu hoặc nguồn giới hạn). Ảnh có thể có vệt trống.',
+        toastExportOk: '<b>Xuất ảnh thành công!</b> {w}×{h}px • {m} MB • {d}s',
+        toastNoBlob: 'Không tạo được ảnh từ Canvas (thiết bị quá tải). Hãy giảm hệ số Scale.',
+        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri Clarity hoặc bật Proxy CORS.',
+        toastMapReady: 'Bản đồ chưa sẵn sàng, thử lại sau giây lát.',
+        toastFlipInfo: 'Chỉ hỗ trợ đảo chiều nhanh giữa 16:9 và 9:16.',
+        toastMaskNoData: 'Không tải được dữ liệu bờ biển — ảnh xuất giữ nguyên toàn vùng.',
+        toastMaskNoD3: 'Thiếu thư viện d3-geo — bỏ qua bộ lọc vùng cho lần chụp này.',
+        toastDualNoD3: 'Thiếu thư viện d3-geo — không tách được 2 lớp.',
+        toastDualNoData: 'Không tải được dữ liệu bờ biển.',
+        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Esri Clarity</b>.',
+        toastDualDone: '<b>Đã xuất 2 lớp khớp pixel!</b> Chồng <code>-{land}.png</code> lên <code>-{ocean}.png</code> trong editor — không hở viền.',
+        toastPreviewFail: 'Không hiển thị được lớp xem trước bờ biển.',
+        fileLand: 'datlien', fileOcean: 'bien', fileMap: 'ban-do', fileBlank: 'ban-do-trang',
+      },
+      en: {
+        settings: 'Settings', close: 'Close', ready: 'Ready',
+        sharpness: 'Sharpness factor (x1 – x64)',
+        so1: '1× (Screen native - Fastest)', so2: '1.5× (Crisp HD+)', so3: '2× (2K / 4K Ultra HD)', so4: '3× (3K Ultra sharp)',
+        so5: '4× (8K Ultra Sharp)', so6: '5× (10K Master)', so7: '6× (12K High detail)', so8: '8× (16K Super-res)',
+        so9: '10× (20K Extreme)', so10: '12× (24K Master Pro)', so11: '16× (Hyper sharp)', so12: '24× (Massive Ultra)',
+        so13: '32× (Insane 32K)', so14: '48× (Extreme Monster)', so15: '64× (Hyper Max 64K)',
+        turboMode: 'Turbo mode', turboFast: '≈4× faster',
+        customResTitle: 'Custom resolution', customResHint: 'overrides Scale',
+        btnCaptureCustom: 'CAPTURE {w}×{h}',
+        toastCustomOn: '<b>Custom resolution:</b> export is exactly {w}×{h}px regardless of Scale — the viewfinder reshapes to match.',
+        toastCustomOff: 'Custom resolution off — back to the Scale factor.',
+        safetyGpu: 'GPU safety limit', safetyHint: 'anti-crash',
+        warnSuper: '<b>Ultra-sharp mode:</b> the adaptive GPU limiter clamps canvas size to your device hardware to prevent tab crashes.',
+        warnUnsafe: '<b>Safety limit OFF:</b> the canvas follows Scale exactly, capped only at the browser ceiling of 16384px. Huge images may crash the tab — at your own risk.',
+        outSize: 'Output size:', outMp: 'Total megapixels:', outTiles: 'Tiles to fetch:',
+        outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'OFF — high risk',
+        srcTitle: 'Satellite imagery source', srcSubEsri: 'CORS OK — 100% stable export',
+        srcSubProxy: 'CORS proxy + light prefetch', srcSubOsm: 'Street map',
+        srcSubFirefly: 'Esri cinematic / firefly style', srcSubUsgs: 'Public USGS satellite imagery', srcSubUsgsTopo: 'USGS imagery + topo / labels',
+        srcSubNasaBlue: 'Static NASA global basemap, ultra light', srcSubNasaTerra: 'NASA VIIRS true color (no stripes)', srcSubNasaNight: 'NASA Earth at night',
+        srcSubEsriTopo: 'Esri topographic reference', srcSubEsriStreet: 'Esri global street map', srcSubEsriNatGeo: 'Esri National Geographic style', srcSubEsriDark: 'Esri dark canvas', srcSubEsriLight: 'Esri light canvas',
+        srcSubGoogleSat: 'Google satellite without labels', srcSubGoogleRoad: 'Google road map', srcSubGoogleTerrain: 'Google terrain / relief',
+        srcSubCartoDark: 'CARTO dark basemap', srcSubCartoLight: 'CARTO light basemap', srcSubOpenTopo: 'Public OpenTopoMap terrain', srcSubCustom: 'Custom provider you pasted',
+        srcNote: 'Included here are the <b>public / no-key imagery and basemap providers</b> that work immediately, plus <b>Custom XYZ URL</b> so you can paste other providers yourself. Commercial basemaps that require your own token (Mapbox, newer ArcGIS Basemap API, MapTiler, etc.) cannot be enabled by default without your credentials.',
+        srcSearchPh: 'Search providers...', srcCustomTitle: 'Custom provider (XYZ URL)', srcCustomNamePh: 'Provider name', srcCustomUrlPh: 'https://.../{z}/{x}/{y}.png', srcCustomMaxZoom: 'Max zoom', srcCustomCors: 'CORS OK', srcCustomApply: 'Apply custom provider', srcCustomHelp: 'Paste an XYZ tile URL like <code>https://.../{z}/{x}/{y}.png</code>. If the provider requires a token, just include it in the URL.',
+        toastCustomProviderApplied: '<b>Custom provider added:</b> {name}', toastCustomProviderInvalid: 'Invalid provider URL. It must include at least <code>{z}</code>, <code>{x}</code>, and <code>{y}</code>.',
+        proxyToggle: 'CORS proxy for blocked sources',
+        ratioTitle: 'Aspect ratio', flip: 'Flip', full: 'Full', thirds: 'Rule-of-thirds grid',
+        areaTitle: 'Capture area', areaView: 'Viewfinder', areaWorld: 'Global Square', areaEqui: 'Global 2:1<br>(Flat)',
+        areaWorldNote: '<b>Global Square (Web Mercator):</b> exports the ±85° world. Standard web projection, heavily stretched at the poles.',
+        areaEquiNote: '<b>Global Flat 2:1 (Equirectangular):</b> exports true 2:1 ratio (±90°). No polar stretching, ideal for 3D globe textures (Blender/Unity). Very heavy to process!',
+        areaViewNote: '<b>Viewfinder:</b> exports exactly what you see framed on screen.',
+        maskTitle: 'Region filter', maskAll: 'All', maskLand: 'Land', maskOcean: 'Ocean', maskCombo: 'Combo', maskBlank: 'White',
+        md110: 'Coastline 110m rough (light, fast)', md50: 'Coastline 50m standard (recommended)', md10: 'Coastline 10m detailed (heavy ~4MB)',
+        maskPreview: 'Preview cut region on map',
+        maskNote: 'Removed areas become <b>transparent</b>, so the export auto-switches to PNG. Natural Earth data is accurate at regional scale — not street level.',
+        dualBtn: 'Export 2 pixel-matched layers (Ocean + Land)',
+        dualNote: 'Editing video (CapCut...)? Use <b>Export 2 layers</b> — ocean & land are split from the same frame so they stack perfectly. Two separate captures always drift apart.',
+        stOff: 'Off', stLand: 'Land', stOcean: 'Ocean', stCombo: 'Combo', stBlankLabel: 'White',
+        stBlankRun: 'Rendering white map...',
+        regionTitle: 'Quick fly-to', rVN: 'Vietnam', rAsia: 'Asia', rAfrica: 'Africa', rEU: 'Europe', rWorld: 'World',
+        formatTitle: 'Export format',
+        fmtJpeg: 'JPEG Turbo (Fastest - Small file)', fmtPng: 'PNG Lossless (Uncompressed - Large file)',
+        captureBtn: 'EXPORT VIEWFINDER (TURBO)',
+        shotsTitle: 'Recent exports', shotsEmpty: 'No shots yet.', shotsUnit: 'shots', download: 'Get',
+        vert: '9:16 Vert', flipShort: 'Flip',
+        btnCapture: 'CAPTURE {s}× (TURBO)', exporting: 'EXPORTING {p}%', dualPct: '2 LAYERS {p}%',
+        badgeStd: '{s}× Sharp', badge8k: '{s}× 8K/16K', badgeUltra: '{s}× Ultra', badgeHyper: '{s}× Hyper',
+        stInit: 'Init {s}× engine...', stProbe: 'Probing fastest CORS proxy...',
+        stTiles: 'Compositing: {d}/{tot} tiles (z{z})...', stTilesCache: 'Compositing: {d}/{tot} • cache {c}',
+        stCutLand: 'Cutting land region...', stCutOcean: 'Cutting ocean region...', stComboRun: 'Painting ocean color...',
+        stDualInit: 'Dual layers: init...', stDualTiles: '2 layers: {d}/{tot} tiles...', stDualSplit: 'Splitting Ocean / Land...',
+        stDone: 'Done in {d}s — {m} MB',
+        stMaskLoad: 'Loading coastlines...', stMaskErr: 'Data load error',
+        finCors: 'CORS error', finMem: 'Memory error', finProxy: 'Proxy overloaded — tap capture again',
+        toastProxyWarn: 'Source <b>{name}</b> blocks CORS. Enable "CORS proxy" to export images.',
+        toastTurboOn: '<b>Turbo on:</b> max ~320 tiles per capture, roughly 4× faster.',
+        toastTurboOff: '<b>Turbo off:</b> Max Detail mode — more tiles, maximum sharpness.',
+        toastSafetyOff: '<b>GPU safety limit disabled.</b> Canvas now follows Scale exactly (up to 16384px) — exceeding device RAM may crash the tab.',
+        toastSafetyOn: 'GPU safety limit re-enabled for this device.',
+        toastPng: 'Switched to <b>PNG</b> to preserve transparency (JPEG has no alpha).',
+        toast10m: '10m coastlines are ~4MB; first load may take a few seconds.',
+        toastWorld: '<b>Global mode:</b> resolution is set by Scale (16× = 4096px, 32× = 8192px on desktop).',
+        toastRuntime: 'Runtime error: {m}',
+        toastProxyDead: '<b>All 3 CORS proxies unresponsive.</b> Try again later or switch to Esri Clarity.',
+        toastTooManyFail: '<b>{f}/{tot} tiles failed</b> — CORS proxy overloaded, export cancelled. Capture again: the engine will re-probe and switch proxies.',
+        toastSomeFail: '{f}/{tot} tiles failed (weak network or source limit). Image may have blank streaks.',
+        toastExportOk: '<b>Export successful!</b> {w}×{h}px • {m} MB • {d}s',
+        toastNoBlob: 'Could not encode canvas (device overloaded). Lower the Scale factor.',
+        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri Clarity or enable the CORS proxy.',
+        toastMapReady: 'Map not ready yet, try again in a moment.',
+        toastFlipInfo: 'Quick flip only works between 16:9 and 9:16.',
+        toastMaskNoData: 'Could not load coastline data — export keeps the full region.',
+        toastMaskNoD3: 'Missing d3-geo library — region filter skipped for this capture.',
+        toastDualNoD3: 'Missing d3-geo library — cannot split 2 layers.',
+        toastDualNoData: 'Could not load coastline data.',
+        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Esri Clarity</b>.',
+        toastDualDone: '<b>2 pixel-matched layers exported!</b> Stack <code>-{land}.png</code> over <code>-{ocean}.png</code> in your editor — zero seams.',
+        toastPreviewFail: 'Could not render the coastline preview layer.',
+        fileLand: 'land', fileOcean: 'ocean', fileMap: 'map', fileBlank: 'white-map',
+      }
+    };
+
+    let lang = 'vi';
+    try { lang = localStorage.getItem('sat-studio-lang') || 'vi'; } catch (_) {}
+
+    function t(key, vars) {
+      let s = (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.vi[key] || key;
+      if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
+      return s;
+    }
+
+    function setLang(l) {
+      lang = l;
+      try { localStorage.setItem('sat-studio-lang', l); } catch (_) {}
+      applyLanguage();
+    }
+
+    function applyLanguage() {
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const v = STRINGS[lang][el.getAttribute('data-i18n')];
+        if (v != null) el.textContent = v;
+      });
+      document.querySelectorAll('[data-i18n-html]').forEach(el => {
+        const v = STRINGS[lang][el.getAttribute('data-i18n-html')];
+        if (v != null) el.innerHTML = v;
+      });
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const v = STRINGS[lang][el.getAttribute('data-i18n-ph')];
+        if (v != null) el.placeholder = v;
+      });
+      const lb = $('lang-btn');
+      if (lb) lb.textContent = lang === 'vi' ? 'EN' : 'VI';
+      if ($('provider-count')) $('provider-count').textContent = providerCountLabel();
+      // Render lại danh sách provider để cập nhật text/label
+      if (typeof renderProviderButtons === 'function') renderProviderButtons();
+      if (typeof setScaleValue === 'function') setScaleValue(currentScale);
+      const ms = $('mask-status');
+      if (ms && typeof maskMode !== 'undefined' && typeof maskStatusLabel === 'function') {
+        ms.textContent = maskStatusLabel(maskMode);
+      }
+      if (typeof renderSnapshotsList === 'function') renderSnapshotsList();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // Giới hạn — ĐÃ MỞ HẾT: không giới hạn tile, zoom, scale
+    const TILE_SIZE = 256;
+    const MAX_TILES = 999999;          // KHÔNG GIỚI HẠN — máy chủ tile quyết định
+    const MAX_TILES_TURBO = 999999;    // KHÔNG GIỚI HẠN cả ở Turbo
+    const MAX_LAT = 85.05112878;
+
+    // Bộ đệm tile kiểu LRU → chụp lặp cùng vùng = tức thì
+    let turboMode = true;
+    let safetyLimitOn = true; // tắt = canvas chỉ bị chặn bởi trần trình duyệt (rủi ro sập tab)
+    let customResOn = false;  // kích thước pixel chính xác, đè hệ số Scale
+    let customW = 3840, customH = 2160;
+
+    function captureLabelText() {
+      return customResOn
+        ? t('btnCaptureCustom', { w: customW, h: customH })
+        : t('btnCapture', { s: currentScale });
+    }
+    const CACHE_LIMIT = (navigator.deviceMemory || 4) >= 8 ? 900 : 400;
+    const PREFETCH_LIMIT = 340;        // chỉ prefetch nền khi khung hình đủ nhỏ
+    const PREFETCH_LIMIT_PROXY = 64;   // nguồn qua proxy: prefetch nhẹ, tránh spam proxy
+    const tileCache = new Map();       // url -> { data, close }
+
+    /* ============================================================
+     * 1. KHỞI TẠO BẢN ĐỒ LEAFLET
+     * ============================================================ */
+    const map = L.map('map', {
+      center: [16.0, 106.0],
+      zoom: 6,
+      minZoom: 2,
+      maxZoom: 22,     // MỞ: zoom tối đa bản đồ = 22 (máy chủ trả tile nào thì hiện tile đó)
+      zoomControl: false,
+      worldCopyJump: true,
+    });
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    function tileXYToQuadKey(x, y, zoom) {
+      let quadKey = "";
+      for (let i = zoom; i > 0; i--) {
+        let digit = 0;
+        const mask = 1 << (i - 1);
+        if ((x & mask) !== 0) digit += 1;
+        if ((y & mask) !== 0) digit += 2;
+        quadKey += String(digit);
+      }
+      return quadKey;
+    }
+
+    const gibsRecentDate = (() => {
+      const d = new Date(Date.now() - 7 * 86400000);
+      return d.toISOString().slice(0, 10);
+    })();
+
+    const TILE_SOURCES = {
+      esri: { name: "Esri Clarity", uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      esri_firefly: { name: "Esri Firefly", uiIcon: "sparkles", noteKey: "srcSubFirefly", category: 'sat', url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      esri_topo: { name: "Esri Topo", uiIcon: "map", noteKey: "srcSubEsriTopo", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      esri_street: { name: "Esri Street", uiIcon: "route", noteKey: "srcSubEsriStreet", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      esri_natgeo: { name: "Esri NatGeo", uiIcon: "book-open", noteKey: "srcSubEsriNatGeo", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 16, corsSafe: true },
+      esri_dark: { name: "Esri Dark Gray", uiIcon: "moon", noteKey: "srcSubEsriDark", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", maxZoom: 16, corsSafe: true },
+      esri_light: { name: "Esri Light Gray", uiIcon: "sun-medium", noteKey: "srcSubEsriLight", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", maxZoom: 16, corsSafe: true },
+      usgs: { name: "USGS Imagery", uiIcon: "mountain-snow", noteKey: "srcSubUsgs", category: 'sat', url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      usgs_topo: { name: "USGS Imagery Topo", uiIcon: "map", noteKey: "srcSubUsgsTopo", category: 'hybrid', url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      nasa_blue: { name: "NASA Blue Marble", uiIcon: "globe-2", noteKey: "srcSubNasaBlue", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
+      nasa_viirs: { name: "NASA VIIRS True Color", uiIcon: "orbit", noteKey: "srcSubNasaTerra", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", time: gibsRecentDate, maxZoom: 9, corsSafe: true },
+      nasa_night: { name: "NASA City Lights", uiIcon: "moon-star", noteKey: "srcSubNasaNight", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default//GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
+      bing: { name: "Bing Satellite", uiIcon: "globe", noteKey: "srcSubProxy", category: 'sat', url: "https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=14364&n=z", maxZoom: 22, subdomains: ["0", "1", "2", "3"], scheme: "bing-quadkey", corsSafe: false },
+      google: { name: "Google Hybrid", uiIcon: "satellite", noteKey: "srcSubProxy", category: 'hybrid', url: "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_sat: { name: "Google Satellite", uiIcon: "image", noteKey: "srcSubGoogleSat", category: 'sat', url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_road: { name: "Google Road", uiIcon: "map", noteKey: "srcSubGoogleRoad", category: 'ref', url: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_terrain: { name: "Google Terrain", uiIcon: "mountain", noteKey: "srcSubGoogleTerrain", category: 'ref', url: "https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      carto_dark: { name: "CARTO Dark", uiIcon: "moon", noteKey: "srcSubCartoDark", category: 'ref', url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", maxZoom: 20, corsSafe: true },
+      carto_light: { name: "CARTO Light", uiIcon: "sun", noteKey: "srcSubCartoLight", category: 'ref', url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", maxZoom: 20, corsSafe: true },
+      opentopo: { name: "OpenTopoMap", uiIcon: "map-pinned", noteKey: "srcSubOpenTopo", category: 'ref', url: "https://tile.opentopomap.org/{z}/{x}/{y}.png", maxZoom: 17, corsSafe: true },
+      osm: { name: "OpenStreetMap", uiIcon: "map-pin", noteKey: "srcSubOsm", category: 'ref', url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", maxZoom: 22, corsSafe: true }
+    };
+
+    let providerSearch = '';
+
+    function loadCustomProvider() {
+      try {
+        const raw = localStorage.getItem('sat-studio-custom-provider');
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        if (!p || !p.url) return;
+        TILE_SOURCES.custom_xyz = {
+          name: p.name || 'Custom XYZ',
+          uiIcon: 'plug-zap',
+          noteKey: 'srcSubCustom',
+          category: 'custom',
+          url: p.url,
+          maxZoom: Math.max(1, Math.min(30, +p.maxZoom || 22)),
+          corsSafe: !!p.corsSafe
+        };
+      } catch (_) {}
+    }
+
+    function saveCustomProvider(p) {
+      try { localStorage.setItem('sat-studio-custom-provider', JSON.stringify(p)); } catch (_) {}
+    }
+
+    function providerCountLabel(shown = Object.keys(TILE_SOURCES).length) {
+      const total = Object.keys(TILE_SOURCES).length;
+      return shown === total ? `${total} src` : `${shown}/${total} src`;
+    }
+
+    loadCustomProvider();
+
+    function renderProviderButtons() {
+      const wrap = $('provider-buttons');
+      if (!wrap) return;
+      const q = providerSearch.trim().toLowerCase();
+      const list = Object.entries(TILE_SOURCES).filter(([, src]) => {
+        if (!q) return true;
+        const hay = `${src.name} ${t(src.noteKey || 'srcSubProxy')} ${src.category || ''}`.toLowerCase();
+        return hay.includes(q);
+      });
+      wrap.innerHTML = list.map(([key, src]) => `
+        <button data-source="${key}" class="src-btn ${key === currentSourceKey ? 'active bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'} p-2 rounded-xl border text-left text-xs font-semibold transition">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="truncate">${src.name}</span></div>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.category || 'map'}</span>
+          </div>
+          <div class="text-[10px] opacity-70 font-normal mt-0.5" data-i18n="${src.noteKey || 'srcSubProxy'}">${t(src.noteKey || 'srcSubProxy')}</div>
+        </button>
+      `).join('') || `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`;
+      $('provider-count').textContent = providerCountLabel(list.length);
+      document.querySelectorAll('.src-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          markActive([...document.querySelectorAll('.src-btn')], 'data-source', btn.getAttribute('data-source'));
+          currentSourceKey = btn.getAttribute('data-source');
+          applyTileLayer(currentSourceKey);
+          warmupConnection(currentSourceKey);
+          const src = TILE_SOURCES[currentSourceKey];
+          if (!src.corsSafe && !useProxy) showToast(t('toastProxyWarn', { name: src.name }), 'warn');
+          updateViewfinder();
+        });
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    let currentTileLayer = null;
+
+    function applyTileLayer(sourceKey) {
+      if (currentTileLayer) map.removeLayer(currentTileLayer);
+      const src = TILE_SOURCES[sourceKey];
+
+      const opts = {
+        maxZoom: 22,                    // Leaflet cho phép zoom tới 22
+        maxNativeZoom: src.maxZoom,     // nhưng tile gốc tối đa theo nguồn — vượt sẽ upscale
+        subdomains: src.subdomains || [],
+        attribution: src.name + " | Satellite Studio",
+        time: src.time || ''
+      };
+
+      if (src.scheme === "bing-quadkey") {
+        currentTileLayer = L.tileLayer("", opts);
+        currentTileLayer.getTileUrl = function (coords) {
+          const quadKey = tileXYToQuadKey(coords.x, coords.y, coords.z);
+          const sub = src.subdomains[(coords.x + coords.y) % src.subdomains.length];
+          return src.url.replace('{q}', quadKey).replace('{s}', sub);
+        };
+      } else {
+        currentTileLayer = L.tileLayer(src.url, opts);
+      }
+
+      currentTileLayer.addTo(map);
+      $('hud-source').textContent = src.name;
+      $('provider-count').textContent = providerCountLabel();
+    }
+
+    /* ============================================================
+     * 2. TOÁN HỌC WEB MERCATOR
+     * ============================================================ */
+    function latToY(lat, zoom, tileSize = TILE_SIZE) {
+      const clamped = Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
+      const rad = (clamped * Math.PI) / 180;
+      const merc = Math.log(Math.tan(Math.PI / 4 + rad / 2));
+      const worldSize = tileSize * Math.pow(2, zoom);
+      return worldSize * (0.5 - merc / (2 * Math.PI));
+    }
+
+    function buildTileUrl(sourceKey, z, x, y) {
+      const src = TILE_SOURCES[sourceKey];
+      if (src.scheme === "bing-quadkey") {
+        const quadKey = tileXYToQuadKey(x, y, z);
+        const sub = src.subdomains[(x + y) % src.subdomains.length];
+        return src.url.replace('{q}', quadKey).replace('{s}', sub).replace('{time}', src.time || '');
+      }
+      const sub = src.subdomains ? src.subdomains[(x + y) % src.subdomains.length] : '0';
+      return src.url.replace('{z}', z).replace('{x}', x).replace('{y}', y).replace('{s}', sub).replace('{time}', src.time || '');
+    }
+
+    /** Biên pixel LIÊN TỤC của một vùng container ở mức zoom nguồn.
+     *  Chiếu 2 góc qua lat/lng rồi bù wrap: nếu góc phải bị bọc về phía tây
+     *  (khung vắt qua kinh tuyến 180°) thì cộng thêm 1 chu kỳ thế giới vào maxX
+     *  → span luôn đúng và tile vẽ liền mạch sang "nửa bên kia". */
+    function pixelBoundsAt(cx0, cy0, cx1, cy1, srcZoom) {
+      const nw = map.containerPointToLatLng([cx0, cy0]);
+      const se = map.containerPointToLatLng([cx1, cy1]);
+      const W = TILE_SIZE * Math.pow(2, srcZoom);
+      const minPixX = ((nw.lng + 180) / 360) * W;
+      let maxPixX = ((se.lng + 180) / 360) * W;
+      if (maxPixX < minPixX) maxPixX += W;   // vắt qua đường đổi ngày
+      return {
+        minPixX, maxPixX,
+        minPixY: latToY(nw.lat, srcZoom),
+        maxPixY: latToY(se.lat, srcZoom),
+      };
+    }
+
+    /** Các bản dịch mask cần vẽ để phủ vùng vắt qua kinh tuyến 180° */
+    function antimeridianOffsets(minPixX, spanPix, worldSize) {
+      const m0 = Math.floor(minPixX / worldSize);
+      const m1 = Math.floor((minPixX + spanPix - 1) / worldSize);
+      const offs = [];
+      for (let m = m0; m <= m1; m++) offs.push(m * worldSize);
+      return offs;
+    }
+
+    /** Số tile bao phủ khung hình ở một mức zoom nguồn (hàng ngang có thể > 2^z khi vắt rìa) */
+    function countTiles(x0, y0, x1, y1, srcZoom) {
+      const b = pixelBoundsAt(x0, y0, x1, y1, srcZoom);
+      const n = Math.pow(2, srcZoom);
+      const minX = Math.floor(b.minPixX / TILE_SIZE), maxX = Math.floor(b.maxPixX / TILE_SIZE);
+      const minY = Math.max(0, Math.floor(b.minPixY / TILE_SIZE));
+      const maxY = Math.min(n - 1, Math.floor(b.maxPixY / TILE_SIZE));
+      return Math.max(1, (maxX - minX + 1) * (maxY - minY + 1));
+    }
+
+    /** Trần canvas thích ứng theo phần cứng / hệ điều hành */
+    function getCanvasCaps() {
+      if (!safetyLimitOn) {
+        // Trần TỐI ĐA mà Chrome/Safari cho phép (≈65536px/edge trên desktop mạnh, ~32768px trên mobile)
+        const isMob = window.innerWidth < 1024 || /Mobi|Android/i.test(navigator.userAgent);
+        const d = isMob ? 16384 : 32768;
+        return { maxArea: d * d, maxDim: d, label: t('capOff') };
+      }
+      const ua = navigator.userAgent;
+      const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isMobile = window.innerWidth < 1024 || /Mobi|Android/i.test(ua);
+      const mem = navigator.deviceMemory || (isMobile ? 4 : 8);
+
+      if (isIOS) return { maxArea: 16777216, maxDim: 4096, label: "iOS Safe ~16.7MP" };
+      if (isMobile) return { maxArea: 32000000, maxDim: 8192, label: "Mobile Safe ~32MP" };
+      if (mem >= 8) return { maxArea: 130000000, maxDim: 16384, label: "Desktop ~130MP" };
+      return { maxArea: 64000000, maxDim: 12288, label: "Desktop ~64MP" };
+    }
+
+    function getTargetRatio() {
+      switch (currentRatio) {
+        case '16:9': return 16 / 9;
+        case '9:16': return 9 / 16;
+        case '1:1': return 1;
+        case '4:3': return 4 / 3;
+        case '21:9': return 21 / 9;
+        default: return null; // free = toàn màn
+      }
+    }
+
+    /* ============================================================
+     * 3. VIEWFINDER GEOMETRY — KHUNG NGẮM KHỚP 100% VÙNG XUẤT
+     * ============================================================ */
+    function updateViewfinder() {
+      if (!map) return null;
+      const mapEl = $('map');
+      const W = mapEl.clientWidth;
+      const H = mapEl.clientHeight;
+      if (!W || !H) return null;
+
+      const vfBox = $('viewfinder-box');
+      let ratio = getTargetRatio();
+      const worldBadge = $('world-badge');
+      const useCustom = customResOn; // kích thước pixel chính xác, đè tỉ lệ & Scale
+
+      // ---------- CHẾ ĐỘ TOÀN CẦU (World / Equirectangular) ----------
+      if (captureArea === 'world' || captureArea === 'equi') {
+        const caps = getCanvasCaps();
+        const tileLimit = turboMode ? MAX_TILES_TURBO : MAX_TILES;
+        vfBox.style.display = 'none';
+        worldBadge.classList.remove('hidden');
+
+        // Tính zoom nguồn giống nhau
+        const zDim = Math.floor(Math.log2(caps.maxDim / 256));
+        const zArea = Math.floor(Math.log2(Math.sqrt(caps.maxArea) / 256));
+        let srcZoom = Math.max(0, Math.min(Math.round(Math.log2(currentScale)), zDim, zArea));
+        const dim = Math.min(caps.maxDim, TILE_SIZE * Math.pow(2, srcZoom));
+        
+        let outW = dim, outH = dim;
+        if (captureArea === 'equi') {
+          outH = Math.floor(dim / 2); // Equirectangular luôn là 2:1
+        }
+        const totalTiles = Math.pow(4, srcZoom);
+
+        $('vf-ratio-tag').textContent = captureArea === 'equi' ? 'EQUI 2:1' : 'WORLD';
+        $('vf-dim-tag').textContent = `${outW} × ${outH} px (${currentScale}×)`;
+        $('world-dim').textContent = `${outW} × ${outH} px`;
+        $('world-info').textContent = `${totalTiles} tiles • z${srcZoom}`;
+        $('info-res').textContent = `${outW} × ${outH} px`;
+        $('info-res').classList.add('text-cyan-300'); $('info-res').classList.remove('text-amber-300');
+        $('info-mp').textContent = `${(outW * outH / 1e6).toFixed(2)} MP`;
+        $('info-tiles').textContent = `${totalTiles} tiles (z${srcZoom})`;
+        $('info-tiles').classList.add('text-emerald-300'); $('info-tiles').classList.remove('text-amber-300');
+        $('info-cap').textContent = caps.label;
+        $('info-cap').classList.toggle('text-rose-300', !safetyLimitOn);
+        $('info-cap').classList.toggle('text-slate-400', safetyLimitOn);
+        $('scale-warning').classList.toggle('hidden', !(currentScale >= 16 || !safetyLimitOn));
+        $('scale-warning-text').innerHTML = safetyLimitOn
+          ? '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.'
+          : '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.';
+        $('info-cache').textContent = `${tileCache.size} tiles`;
+
+        const center = map.getCenter();
+        $('hud-coords').textContent = `${center.lat.toFixed(3)}°, ${center.lng.toFixed(3)}° • ${captureArea.toUpperCase()}`;
+
+        return { world: true, equi: captureArea === 'equi', x0: 0, y0: 0, x1: W, y1: H, fw: W, fh: H, outW, outH, srcZoom, totalTiles, clamped: false };
+      }
+      worldBadge.classList.add('hidden');
+
+      // Tùy chỉnh: khung ngắm theo đúng tỉ lệ W:H của kích thước xuất
+      if (useCustom) ratio = customW / customH;
+
+      let fw, fh, x0, y0;
+
+      if (ratio === null) {
+        vfBox.style.display = 'none';
+        fw = W; fh = H; x0 = 0; y0 = 0;
+      } else {
+        vfBox.style.display = 'block';
+        const isMobile = window.innerWidth < 1024;
+        const isLandscape = W > H;
+
+        const maxW = W * (isMobile ? (isLandscape ? 0.75 : 0.88) : 0.84);
+        const maxH = H * (isMobile ? (isLandscape ? 0.78 : 0.60) : 0.80);
+
+        if (maxW / maxH > ratio) { fh = maxH; fw = maxH * ratio; }
+        else { fw = maxW; fh = maxW / ratio; }
+
+        fw = Math.round(fw);
+        fh = Math.round(fh);
+        x0 = Math.round((W - fw) / 2);
+        const lift = (isMobile && !isLandscape) ? Math.round(Math.min(42, H * 0.05)) : 0;
+        y0 = Math.round((H - fh) / 2) - lift;
+
+        // Định vị tuyệt đối → khung nhìn thấy = đúng vùng được chụp
+        vfBox.style.width = fw + 'px';
+        vfBox.style.height = fh + 'px';
+        vfBox.style.left = x0 + 'px';
+        vfBox.style.top = y0 + 'px';
+      }
+
+      // ---- Kẹp kích thước canvas theo cả cạnh lẫn TỔNG PIXEL ----
+      const caps = getCanvasCaps();
+      let outW, outH;
+      if (useCustom) { outW = customW; outH = customH; }
+      else { outW = Math.round(fw * currentScale); outH = Math.round(fh * currentScale); }
+      let clamped = false;
+      const kDim = Math.min(1, caps.maxDim / outW, caps.maxDim / outH);
+      const kArea = Math.min(1, Math.sqrt(caps.maxArea / (outW * outH)));
+      const k = Math.min(kDim, kArea);
+      if (k < 1) {
+        outW = Math.max(1, Math.floor(outW * k));
+        outH = Math.max(1, Math.floor(outH * k));
+        clamped = true;
+      }
+
+      const megapixel = ((outW * outH) / 1000000).toFixed(2);
+
+      $('vf-ratio-tag').textContent = useCustom ? 'CUSTOM' : (currentRatio === 'free' ? 'FULL' : currentRatio.toUpperCase());
+      $('vf-dim-tag').textContent = `${outW} × ${outH} px (${currentScale}×)`;
+      $('info-res').textContent = `${outW} × ${outH} px${clamped ? ' *' : ''}`;
+      $('info-res').classList.toggle('text-amber-300', clamped);
+      $('info-res').classList.toggle('text-cyan-300', !clamped);
+      $('info-mp').textContent = `${megapixel} MP`;
+      $('info-cap').textContent = caps.label;
+      $('info-cap').classList.toggle('text-rose-300', !safetyLimitOn);
+      $('info-cap').classList.toggle('text-slate-400', safetyLimitOn);
+
+      // ---- Tính zoom nguồn + giới hạn số tile chống bùng nổ request ----
+      const x1 = x0 + fw, y1 = y0 + fh;
+      const zoom = map.getZoom();
+      const src = TILE_SOURCES[currentSourceKey];
+      // KHÔNG GIỚI HẠN: srcZoom = đúng mức cần để ảnh xuất sắc nét nhất
+      const effScale = useCustom && fw > 0 ? Math.max(1, outW / fw) : currentScale;
+      let srcZoom = Math.min(src.maxZoom, Math.max(0, Math.ceil(zoom + Math.log2(effScale))));
+      let totalTiles = countTiles(x0, y0, x1, y1, srcZoom);
+      let autoCapped = false;
+
+      $('info-tiles').textContent = `${totalTiles} tiles (z${srcZoom})${autoCapped ? ' • auto' : ''}`;
+      $('info-tiles').classList.toggle('text-amber-300', autoCapped || totalTiles > 400);
+      $('info-tiles').classList.toggle('text-emerald-300', !(autoCapped || totalTiles > 400));
+
+      const center = map.getCenter();
+      $('hud-coords').textContent = `${center.lat.toFixed(3)}°, ${center.lng.toFixed(3)}° • z${map.getZoom().toFixed(1)}`;
+      const warnOn = currentScale >= 16 || !safetyLimitOn;
+      $('scale-warning').classList.toggle('hidden', !warnOn);
+      $('scale-warning-text').innerHTML = safetyLimitOn
+        ? '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.'
+        : '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.';
+      $('info-cache').textContent = `${tileCache.size} tiles`;
+      $('scale-badge').textContent = useCustom
+        ? `${customW} × ${customH} px`
+        : t(currentScale >= 32 ? 'badgeHyper' : currentScale >= 16 ? 'badgeUltra' : currentScale >= 4 ? 'badge8k' : 'badgeStd', { s: currentScale });
+      if (!isCapturing) $('mobile-btn-text').textContent = captureLabelText();
+      $('scale-select').classList.toggle('opacity-40', useCustom);
+      $('quick-scale-grid').classList.toggle('opacity-40', useCustom);
+
+      // Lên lịch tải trước (prefetch) tile của khung ngắm hiện tại
+      if (typeof schedulePrefetch === 'function' && !isCapturing) schedulePrefetch(400);
+
+      return { x0, y0, x1, y1, fw, fh, outW, outH, srcZoom, totalTiles, clamped };
+    }
+
+    map.on('move zoom resize', () => updateViewfinder());
+
+    /* ============================================================
+     * 4. TỰ ĐỘNG CÂN CHỈNH GIAO DIỆN MOBILE
+     * ============================================================ */
+    function initMobileAutoFix() {
+      function setAppHeight() {
+        document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+        if (map) {
+          map.invalidateSize({ pan: false });
+          updateViewfinder();
+        }
+      }
+      window.addEventListener('resize', setAppHeight);
+      window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 250));
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
+      setAppHeight();
+    }
+
+    /* ============================================================
+     * 5. HỆ THỐNG TOAST (thay alert chặn UI)
+     * ============================================================ */
+    const TOAST_STYLES = {
+      info:    { icon: 'info',           cls: 'border-cyan-400/40 text-cyan-100' },
+      success: { icon: 'circle-check',   cls: 'border-emerald-400/40 text-emerald-100' },
+      warn:    { icon: 'triangle-alert', cls: 'border-amber-400/40 text-amber-100' },
+      error:   { icon: 'octagon-x',      cls: 'border-rose-400/40 text-rose-100' },
+    };
+
+    function showToast(msg, type = 'info', duration = 4200) {
+      const wrap = $('toast-wrap');
+      const st = TOAST_STYLES[type] || TOAST_STYLES.info;
+      const el = document.createElement('div');
+      el.className = `toast-item pointer-events-auto w-full flex items-start gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-950/95 backdrop-blur-md border shadow-2xl text-xs leading-snug ${st.cls}`;
+      el.innerHTML = `<i data-lucide="${st.icon}" class="w-4 h-4 shrink-0 mt-px"></i><span class="flex-1">${msg}</span>`;
+      wrap.appendChild(el);
+      if (window.lucide) lucide.createIcons();
+      setTimeout(() => {
+        el.classList.add('toast-out');
+        setTimeout(() => el.remove(), 280);
+      }, duration);
+    }
+
+    // Bắt mọi lỗi runtime → hiện toast thay vì chết âm thầm
+    window.addEventListener('error', (e) => {
+      try { showToast(t('toastRuntime', { m: e.message || 'unknown' }), 'error', 7000); } catch (_) {}
+    });
+
+    /* ============================================================
+     * 6. ĐIỀU KHIỂN & GIAO DIỆN
+     * ============================================================ */
+    const drawer = $('drawer-panel');
+    $('btn-open-drawer').addEventListener('click', () => drawer.classList.remove('translate-y-full'));
+    $('btn-close-drawer').addEventListener('click', () => drawer.classList.add('translate-y-full'));
+    if (window.innerWidth < 1024) drawer.classList.add('translate-y-full');
+
+    const ACTIVE_CLS = ['active', 'bg-cyan-500/20', 'border-cyan-400', 'text-cyan-200', 'text-cyan-100'];
+    const IDLE_CLS = ['bg-white/5', 'border-white/10', 'border-white/5', 'text-slate-300'];
+
+    function markActive(buttons, attr, value) {
+      buttons.forEach(b => {
+        const on = b.getAttribute(attr) === value;
+        ACTIVE_CLS.forEach(c => b.classList.toggle(c, on));
+        IDLE_CLS.forEach(c => b.classList.toggle(c, !on));
+      });
+    }
+
+    function setRatio(r) {
+      currentRatio = r;
+      markActive([...document.querySelectorAll('.ratio-btn, .quick-ratio')], 'data-ratio', r);
+      updateViewfinder();
+    }
+    document.querySelectorAll('.ratio-btn, .quick-ratio').forEach(btn => {
+      btn.addEventListener('click', () => setRatio(btn.getAttribute('data-ratio')));
+    });
+
+    function flipRatio() {
+      if (customResOn) { // đảo W↔H ở chế độ tùy chỉnh
+        const tmp = customW; customW = customH; customH = tmp;
+        $('custom-w').value = customW; $('custom-h').value = customH;
+        updateViewfinder();
+        return;
+      }
+      if (currentRatio === '16:9') setRatio('9:16');
+      else if (currentRatio === '9:16') setRatio('16:9');
+      else showToast(t('toastFlipInfo'), 'info');
+    }
+    $('mobile-btn-flip').addEventListener('click', flipRatio);
+    $('desktop-btn-flip').addEventListener('click', flipRatio);
+
+    $('check-thirds').addEventListener('change', (e) => {
+      $('grid-thirds').style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    function setScaleValue(val) {
+      currentScale = parseFloat(val);
+      $('scale-select').value = String(val);
+      const badgeKey = currentScale >= 32 ? 'badgeHyper' : currentScale >= 16 ? 'badgeUltra' : currentScale >= 4 ? 'badge8k' : 'badgeStd';
+      $('scale-badge').textContent = t(badgeKey, { s: currentScale });
+      if (!isCapturing) $('mobile-btn-text').textContent = captureLabelText();
+      markActive([...document.querySelectorAll('.quick-scale-btn')], 'data-setscale', String(val));
+      updateViewfinder();
+    }
+    $('scale-select').addEventListener('change', (e) => setScaleValue(e.target.value));
+    document.querySelectorAll('.quick-scale-btn').forEach(btn => {
+      btn.addEventListener('click', () => setScaleValue(btn.getAttribute('data-setscale')));
+    });
+
+    $('format-select').addEventListener('change', (e) => { currentFormat = e.target.value; });
+    $('proxy-check').addEventListener('change', (e) => { useProxy = e.target.checked; });
+    $('turbo-check').addEventListener('change', (e) => {
+      turboMode = e.target.checked;
+      showToast(t(turboMode ? 'toastTurboOn' : 'toastTurboOff'), 'info', 3000);
+      updateViewfinder();
+    });
+
+    $('safety-check').addEventListener('change', (e) => {
+      safetyLimitOn = e.target.checked;
+      if (!safetyLimitOn) showToast(t('toastSafetyOff'), 'warn', 8000);
+      else showToast(t('toastSafetyOn'), 'success', 3000);
+      updateViewfinder();
+    });
+
+    function setCustomRes(on) {
+      customResOn = on;
+      $('custom-res-row').classList.toggle('hidden', !on);
+      $('custom-res-row').classList.toggle('flex', on);
+      $('custom-presets').classList.toggle('hidden', !on);
+      $('custom-presets').classList.toggle('flex', on);
+      if (on) showToast(t('toastCustomOn', { w: customW, h: customH }), 'info', 4000);
+      else showToast(t('toastCustomOff'), 'info', 3000);
+      updateViewfinder();
+    }
+    $('custom-res-check').addEventListener('change', (e) => setCustomRes(e.target.checked));
+
+    function setCustomSize(w, h) {
+      customW = Math.min(16384, Math.max(64, Math.round(w)));
+      customH = Math.min(16384, Math.max(64, Math.round(h)));
+      $('custom-w').value = customW;
+      $('custom-h').value = customH;
+      updateViewfinder();
+    }
+    $('custom-w').addEventListener('input', (e) => setCustomSize(+e.target.value || 64, customH));
+    $('custom-h').addEventListener('input', (e) => setCustomSize(customW, +e.target.value || 64));
+    document.querySelectorAll('.custom-preset').forEach(b => {
+      b.addEventListener('click', () => setCustomSize(+b.getAttribute('data-cw'), +b.getAttribute('data-ch')));
+    });
+
+    renderProviderButtons();
+
+    $('provider-search').addEventListener('input', (e) => {
+      providerSearch = e.target.value || '';
+      renderProviderButtons();
+    });
+
+    $('btn-apply-custom-provider').addEventListener('click', () => {
+      const name = ($('custom-provider-name').value || 'Custom XYZ').trim();
+      const url = ($('custom-provider-url').value || '').trim();
+      const maxZoom = Math.max(1, Math.min(30, +$('custom-provider-maxzoom').value || 22));
+      const corsSafe = $('custom-provider-cors').checked;
+      if (!url.includes('{z}') || !url.includes('{x}') || !url.includes('{y}')) {
+        showToast(t('toastCustomProviderInvalid'), 'error', 5000);
+        return;
+      }
+      TILE_SOURCES.custom_xyz = {
+        name,
+        uiIcon: 'plug-zap',
+        noteKey: 'srcSubCustom',
+        category: 'custom',
+        url,
+        maxZoom,
+        corsSafe
+      };
+      saveCustomProvider({ name, url, maxZoom, corsSafe });
+      currentSourceKey = 'custom_xyz';
+      renderProviderButtons();
+      applyTileLayer(currentSourceKey);
+      warmupConnection(currentSourceKey);
+      updateViewfinder();
+      showToast(t('toastCustomProviderApplied', { name }), 'success', 3500);
+    });
+
+    if (TILE_SOURCES.custom_xyz) {
+      $('custom-provider-name').value = TILE_SOURCES.custom_xyz.name || 'Custom XYZ';
+      $('custom-provider-url').value = TILE_SOURCES.custom_xyz.url || '';
+      $('custom-provider-maxzoom').value = TILE_SOURCES.custom_xyz.maxZoom || 22;
+      $('custom-provider-cors').checked = !!TILE_SOURCES.custom_xyz.corsSafe;
+    }
+
+    const REGION_BOUNDS = {
+      vietnam: [[8.2, 102.1], [23.4, 109.9]],
+      asia:    [[-11, 25], [75, 150]],
+      africa:  [[-35, -18], [37, 52]],
+      europe:  [[34, -25], [71, 45]],
+      world:   [[-70, -180], [80, 180]]
+    };
+    document.querySelectorAll('#region-buttons button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        map.flyToBounds(REGION_BOUNDS[btn.getAttribute('data-loc')], { padding: [20, 20], duration: 1.2 });
+        if (window.innerWidth < 1024) drawer.classList.add('translate-y-full');
+      });
+    });
+
+    /* ============================================================
+     * 6b. MASK ENGINE — CHỈ CHỤP ĐẤT LIỀN HOẶC CHỈ CHỤP BIỂN
+     * ============================================================ */
+    let maskMode = 'all';        // all | land | ocean
+    let captureArea = 'viewport'; // viewport | world (xuất toàn cầu, không phụ thuộc màn hình)
+    let maskDetail = '50m';
+    let maskPreviewOn = true;
+    let previewToken = 0; // token chống race khi render preview
+    const landCache = {};        // detail -> GeoJSON
+
+    const LAND_SOURCES = {
+      '110m': ['https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json'],
+      '50m':  ['https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json'],
+      '10m':  ['https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_10m_land.geojson',
+               'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson']
+    };
+
+    async function loadLandData(detail) {
+      if (landCache[detail]) return landCache[detail];
+      const urls = LAND_SOURCES[detail] || LAND_SOURCES['50m'];
+      $('mask-status').textContent = t('stMaskLoad');
+      for (const u of urls) {
+        try {
+          const res = await fetch(u, { mode: 'cors', cache: 'force-cache' });
+          if (!res.ok) continue;
+          const json = await res.json();
+          let geo = json;
+          if (json.type === 'Topology') {
+            if (!window.topojson) continue;
+            const key = json.objects.land ? 'land' : Object.keys(json.objects)[0];
+            geo = topojson.feature(json, json.objects[key]);
+          }
+          // Giữ GeoJSON nguyên bản — d3-geo tự xử lý kinh tuyến 180° khi chiếu
+          landCache[detail] = geo;
+          $('mask-status').textContent = maskStatusLabel(maskMode);
+          return geo;
+        } catch (_) { /* thử URL kế tiếp */ }
+      }
+      $('mask-status').textContent = t('stMaskErr');
+      return null;
+    }
+
+    /* ---------- MASK BẰNG d3-geo ----------
+     * d3-geo được viết bởi chính tác giả bộ dữ liệu Natural Earth.
+     * geoMercator() MẶC ĐỊNH cắt polygon tại kinh tuyến 180° (clipAntimeridian)
+     * → chấm dứt vĩnh viễn lỗi "vòng quanh Trái Đất" / vệt ngang. */
+
+    /** Projection Mercator của d3 khớp CHÍNH XÁC hệ pixel Web Mercator của app */
+    function mercatorProjection(srcZoom, minPixX, minPixY, scaleX, scaleY, offsetPixX = 0) {
+      const worldSize = TILE_SIZE * Math.pow(2, srcZoom);
+      return d3.geoMercator()
+        .scale((worldSize / (2 * Math.PI)) * scaleX)
+        .translate([
+          (worldSize / 2 - minPixX + offsetPixX) * scaleX,
+          (worldSize / 2 - minPixY) * scaleY
+        ])
+        .precision(0.5);
+    }
+
+    /** Path2D đất liền — dùng chung cho mask xuất ảnh VÀ preview (WYSIWYG) */
+    function makeLandPath(geo, srcZoom, minPixX, minPixY, scaleX, scaleY, offsetPixX = 0) {
+      if (!window.d3 || !d3.geoMercator) return null;
+      const d = d3.geoPath(mercatorProjection(srcZoom, minPixX, minPixY, scaleX, scaleY, offsetPixX))(geo);
+      return d ? new Path2D(d) : null;
+    }
+
+    /** Vẽ mask TRẮNG của đất liền khớp pixel với ảnh xuất */
+    function buildLandMask(geo, w, h, srcZoom, minPixX, minPixY, scaleX, scaleY) {
+      const mc = document.createElement('canvas');
+      mc.width = w; mc.height = h;
+      const m = mc.getContext('2d');
+      m.fillStyle = '#ffffff';
+
+      const worldSize = TILE_SIZE * Math.pow(2, srcZoom);
+      const spanPix = w / scaleX;
+      // Phủ đủ bản sao khi khung vắt qua rìa thế giới (minPixX có thể > worldSize)
+      const offsets = antimeridianOffsets(minPixX, spanPix, worldSize);
+
+      // evenodd → hồ nước bên trong lục địa thành "lỗ"
+      for (const off of offsets) {
+        const p = makeLandPath(geo, srcZoom, minPixX, minPixY, scaleX, scaleY, off);
+        if (p) m.fill(p, 'evenodd');
+      }
+      return mc;
+    }
+
+    /** Tile "trắng đồng nhất" = máy chủ không có dữ liệu ở vùng đó (thường gặp ở
+     *  vùng cực). Khi chụp BIỂN: bỏ qua để không còn mảng trắng trong ảnh xuất. */
+    function isUniformBlank(img) {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 4; c.height = 4;
+        const cx = c.getContext('2d', { willReadFrequently: true });
+        cx.drawImage(img, 0, 0, 4, 4);
+        const d = cx.getImageData(0, 0, 4, 4).data;
+        const r0 = d[0], g0 = d[1], b0 = d[2];
+        if (r0 + g0 + b0 < 660) return false; // không phải trắng sáng
+        for (let i = 4; i < d.length; i += 4) {
+          if (Math.abs(d[i] - r0) > 14 || Math.abs(d[i + 1] - g0) > 14 || Math.abs(d[i + 2] - b0) > 14) return false;
+        }
+        return true;
+      } catch (_) {
+        return false; // canvas tainted → không kiểm tra được, cứ vẽ
+      }
+    }
+
+    const previewCanvasEl = $('mask-overlay');
+
+    /** Xem trước bằng CANVAS vẽ trực tiếp từ chính logic mask của ảnh xuất
+     *  (makeLandPath + d3-geo) → WYSIWYG 100%, d3 tự cắt kinh tuyến 180°. */
+    async function refreshMaskPreview() {
+      const tk = ++previewToken;
+      try {
+        const mapEl = $('map');
+        const W = mapEl.clientWidth, H = mapEl.clientHeight;
+        if (!W || !H) return;
+        const c = previewCanvasEl.getContext('2d');
+
+        if (maskMode === 'all' || !maskPreviewOn) {
+          previewCanvasEl.width = W; previewCanvasEl.height = H;
+          c.clearRect(0, 0, W, H);
+          return;
+        }
+
+        // 10m quá nặng để vẽ lại mỗi lần pan → preview dùng 50m (xuất vẫn dùng đúng 10m)
+        const previewDetail = maskDetail === '10m' ? '50m' : maskDetail;
+        const geo = landCache[previewDetail] || await loadLandData(previewDetail);
+        if (tk !== previewToken || maskMode === 'all' || !maskPreviewOn) return;
+        if (!geo) return;
+
+        // Dùng Leaflet's container-to-latlng trực tiếp → luôn khớp mọi mức zoom
+        const nwLL = map.containerPointToLatLng([0, 0]);
+        const seLL = map.containerPointToLatLng([W, H]);
+        // Chọn integer zoom đủ cao để d3 có đủ độ chính xác
+        const z = Math.max(1, Math.ceil(map.getZoom()));
+        const worldSize = TILE_SIZE * Math.pow(2, z);
+        let minPixX = ((nwLL.lng + 180) / 360) * worldSize;
+        let maxPixX = ((seLL.lng + 180) / 360) * worldSize;
+        if (maxPixX < minPixX) maxPixX += worldSize;
+        const minPixY = latToY(nwLL.lat, z);
+        const maxPixY = latToY(seLL.lat, z);
+        const pixW = maxPixX - minPixX;
+        const pixH = maxPixY - minPixY;
+        const sx = W / pixW, sy = H / pixH;
+
+        previewCanvasEl.width = W; previewCanvasEl.height = H;
+        c.clearRect(0, 0, W, H);
+
+        const keepLand = maskMode === 'land';
+        const isCombo = maskMode === 'combo';
+        const offsets = antimeridianOffsets(minPixX, pixW, worldSize);
+
+        // Bản đồ trắng: nền trắng + đất đen nguyên khối (pixel-perfect từ mask)
+        if (maskMode === 'blank') {
+          c.fillStyle = '#ffffff';
+          c.fillRect(0, 0, W, H);
+          c.fillStyle = '#000000';
+          for (const off of offsets) {
+            const p = makeLandPath(geo, z, minPixX, minPixY, sx, sy, off);
+            if (p) c.fill(p, 'evenodd');
+          }
+          return;
+        }
+
+        if (maskMode === 'ocean') { // biển: phủ tối toàn màn rồi "đục" đất liền ra
+          c.fillStyle = 'rgba(2, 6, 23, 0.62)';
+          c.fillRect(0, 0, W, H);
+        }
+        if (isCombo) { // kết hợp: phủ màu biển rồi đục lỗ đất liền → lộ bản đồ thật bên dưới
+          c.fillStyle = oceanColor;
+          c.fillRect(0, 0, W, H);
+        }
+        for (const off of offsets) {
+          const path = makeLandPath(geo, z, minPixX, minPixY, sx, sy, off);
+          if (!path) continue;
+          if (keepLand) {
+            c.fillStyle = 'rgba(34, 211, 238, 0.15)';
+            c.fill(path, 'evenodd');
+            c.strokeStyle = 'rgba(34, 211, 238, 0.6)';
+            c.lineWidth = 1;
+            c.stroke(path);
+          } else {
+            c.globalCompositeOperation = 'destination-out';
+            c.fill(path, 'evenodd');
+            c.globalCompositeOperation = 'source-over';
+            if (!isCombo) {
+              c.strokeStyle = 'rgba(251, 113, 133, 0.75)';
+              c.lineWidth = 1;
+              c.stroke(path);
+            }
+          }
+        }
+      } catch (err) {
+        // lỗi render preview không được phá trải nghiệm người dùng
+      }
+    }
+
+    let previewRaf = 0;
+    function scheduleMaskPreview() {
+      cancelAnimationFrame(previewRaf);
+      previewRaf = requestAnimationFrame(() => refreshMaskPreview());
+    }
+    map.on('moveend zoomend resize', scheduleMaskPreview);
+
+    let oceanColor = '#062a45';
+
+    function maskStatusLabel(mode) {
+      const lbl = mode === 'all' ? 'stOff' : mode === 'land' ? 'stLand' : mode === 'ocean' ? 'stOcean' : mode === 'blank' ? 'stBlankLabel' : 'stCombo';
+      return t(lbl) + (mode === 'all' ? '' : ' • ' + maskDetail);
+    }
+
+    function setMaskMode(mode) {
+      maskMode = mode;
+      markActive([...document.querySelectorAll('.mask-btn')], 'data-mask', mode);
+      $('mask-status').textContent = maskStatusLabel(mode);
+      $('ocean-color-row').classList.toggle('hidden', mode !== 'combo');
+      $('ocean-color-row').classList.toggle('flex', mode === 'combo');
+      // Chỉ land/ocean mới cần nền trong suốt → ép PNG. Kết hợp là ảnh đặc, JPEG OK.
+      if ((mode === 'land' || mode === 'ocean') && currentFormat !== 'png') {
+        currentFormat = 'png';
+        $('format-select').value = 'png';
+        showToast(t('toastPng'), 'info', 3500);
+      }
+      refreshMaskPreview();
+    }
+
+    function setOceanColor(hex) {
+      oceanColor = hex;
+      $('ocean-color-hex').textContent = hex;
+      $('ocean-color-custom').value = hex;
+      document.querySelectorAll('.ocean-swatch').forEach(s => {
+        s.classList.toggle('border-cyan-400', s.getAttribute('data-oceancolor') === hex);
+        s.classList.toggle('border-transparent', s.getAttribute('data-oceancolor') !== hex);
+      });
+      if (maskMode === 'combo') refreshMaskPreview();
+    }
+    document.querySelectorAll('.ocean-swatch').forEach(b => {
+      b.addEventListener('click', () => setOceanColor(b.getAttribute('data-oceancolor')));
+    });
+    $('ocean-color-custom').addEventListener('input', (e) => setOceanColor(e.target.value));
+
+    document.querySelectorAll('.mask-btn').forEach(b => {
+      b.addEventListener('click', () => setMaskMode(b.getAttribute('data-mask')));
+    });
+    $('mask-detail').addEventListener('change', (e) => {
+      maskDetail = e.target.value;
+      if (maskDetail === '10m') showToast(t('toast10m'), 'info', 3500);
+      refreshMaskPreview();
+    });
+    $('mask-preview-check').addEventListener('change', (e) => {
+      maskPreviewOn = e.target.checked;
+      refreshMaskPreview();
+    });
+
+    function setCaptureArea(area) {
+      captureArea = area;
+      markActive([...document.querySelectorAll('.area-btn')], 'data-area', area);
+      const noteEl = $('area-note');
+      if (noteEl) {
+        if (area === 'viewport') noteEl.innerHTML = t('areaViewNote');
+        else if (area === 'world') noteEl.innerHTML = t('areaWorldNote');
+        else if (area === 'equi') noteEl.innerHTML = t('areaEquiNote');
+      }
+      if (area === 'world' || area === 'equi') showToast(t('toastWorld'), 'info', 4000);
+      updateViewfinder();
+    }
+    document.querySelectorAll('.area-btn').forEach(b => {
+      b.addEventListener('click', () => setCaptureArea(b.getAttribute('data-area')));
+    });
+
+    /* ============================================================
+     * 7. ĐỘNG CƠ XUẤT ẢNH CRASH-PROOF
+     * ============================================================ */
+    function loadImg(url, useCors, timeoutMs = 15000) {
+      return new Promise((resolve) => {
+        let settled = false;
+        const img = new Image();
+        if (useCors) img.crossOrigin = 'anonymous';
+        const done = (val) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(to);
+          resolve(val);
+        };
+        const to = setTimeout(() => done(null), timeoutMs);
+        img.onload = () => done(img);
+        img.onerror = () => done(null);
+        img.src = url;
+      });
+    }
+
+    /* ---------- BỘ ĐỆM TILE LRU ---------- */
+    function cacheTouch(url) {
+      const e = tileCache.get(url);
+      if (e) { tileCache.delete(url); tileCache.set(url, e); } // đẩy về cuối = mới nhất
+      return e;
+    }
+    function cacheSet(url, entry) {
+      if (tileCache.has(url)) tileCache.delete(url);
+      tileCache.set(url, entry);
+      while (tileCache.size > CACHE_LIMIT) {
+        const k = tileCache.keys().next().value;
+        const v = tileCache.get(k);
+        tileCache.delete(k);
+        try { v && v.close && v.close(); } catch (_) {}
+      }
+    }
+
+    // Thứ tự mặc định: weserv (CDN ảnh, thường nhanh nhất) trước.
+    // ensureFastProxy() sẽ ĐO ĐỘ TRỄ THẬT và tự xếp lại thứ tự.
+    const PROXY_BUILDERS = [
+      (u) => `https://images.weserv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//, ''))}`,
+      (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+    ];
+
+    let activeProxyIdx = 0;       // proxy nhanh nhất theo đo thực tế
+    let proxyProbePromise = null; // cache kết quả probe cho cả phiên
+
+    function proxyOrder() {
+      const idxs = PROXY_BUILDERS.map((_, i) => i);
+      idxs.sort((a, b) => (a === activeProxyIdx ? -1 : b === activeProxyIdx ? 1 : a - b));
+      return idxs;
+    }
+
+    /** Đo tốc độ thật của 3 proxy bằng 1 tile mẫu (song song) → chọn cái nhanh nhất */
+    async function ensureFastProxy(force = false) {
+      if (!force && proxyProbePromise) return proxyProbePromise;
+      const p = (async () => {
+        try {
+          const sample = buildTileUrl(currentSourceKey, 2, 2, 1);
+          const results = await Promise.all(PROXY_BUILDERS.map(async (mk, i) => {
+            const t0 = performance.now();
+            try {
+              await fetchTileEntry(mk(sample), 7000);
+              return { i, ms: performance.now() - t0, ok: true };
+            } catch (_) {
+              return { i, ms: Infinity, ok: false };
+            }
+          }));
+          results.sort((a, b) => a.ms - b.ms);
+          if (results[0].ok) activeProxyIdx = results[0].i;
+          return results[0].ok;
+        } catch (_) {
+          return false;
+        }
+      })();
+      proxyProbePromise = p;
+      const ok = await p;
+      if (!ok) proxyProbePromise = null; // lần sau probe lại
+      return ok;
+    }
+
+    /** fetch + createImageBitmap: giải mã song song, nhanh hơn thẻ <img> truyền thống */
+    async function fetchTileEntry(url, timeoutMs = 15000) {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, {
+          mode: 'cors', credentials: 'omit', cache: 'force-cache',
+          referrerPolicy: 'no-referrer', signal: ctl.signal,
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const blob = await res.blob();
+        if (!blob.type.startsWith('image')) throw new Error('not-image');
+        if ('createImageBitmap' in window) {
+          const bmp = await createImageBitmap(blob);
+          return { data: bmp, close: () => { try { bmp.close(); } catch (_) {} } };
+        }
+        const objUrl = URL.createObjectURL(blob);
+        const img = await loadImg(objUrl, false);
+        if (!img) { URL.revokeObjectURL(objUrl); throw new Error('decode-fail'); }
+        return { data: img, close: () => URL.revokeObjectURL(objUrl) };
+      } finally {
+        clearTimeout(to);
+      }
+    }
+
+    /** Loader tốc độ cao: cache RAM → fetch/bitmap (kèm proxy) → <img> CORS → <img> thường */
+    async function loadTileFast(url, corsSafe) {
+      const hit = cacheTouch(url);
+      if (hit) return { data: hit.data, tainted: false, cached: true };
+
+      if (corsSafe) {
+        try {
+          const entry = await fetchTileEntry(url, 12000);
+          cacheSet(url, entry);
+          return { data: entry.data, tainted: false, cached: false };
+        } catch (_) { /* rơi xuống fallback <img> bên dưới */ }
+      } else if (useProxy) {
+        // Proxy nhanh nhất (đã đo) đi trước; backup timeout NGẮN để fail-fast
+        const order = proxyOrder();
+        for (let k = 0; k < order.length; k++) {
+          try {
+            const entry = await fetchTileEntry(PROXY_BUILDERS[order[k]](url), k === 0 ? 10000 : 5000);
+            cacheSet(url, entry);
+            return { data: entry.data, tainted: false, cached: false };
+          } catch (_) { /* thử proxy kế tiếp */ }
+        }
+      }
+
+      if (corsSafe) {
+        const img = await loadImg(url, true);
+        if (img) {
+          cacheSet(url, { data: img, close() {} });
+          return { data: img, tainted: false, cached: false };
+        }
+      }
+      const taintedImg = await loadImg(url, false);
+      if (taintedImg) return { data: taintedImg, tainted: true, cached: false };
+      return { data: null };
+    }
+
+    /** Liệt kê mọi tile phủ khung ngắm (dùng chung cho capture & prefetch) */
+    function enumerateTileUrls(vf) {
+      // Toàn cầu: quét toàn bộ lưới 2^z × 2^z, không dùng container point
+      if (vf.world) {
+        const n = Math.pow(2, vf.srcZoom);
+        const out = [];
+        for (let ty = 0; ty < n; ty++)
+          for (let tx = 0; tx < n; tx++)
+            out.push({ tx, ty, url: buildTileUrl(currentSourceKey, vf.srcZoom, tx, ty) });
+        return out;
+      }
+      // Pixel tuyệt đối → không sai ở rìa kinh tuyến 180°
+      const b = pixelBoundsAt(vf.x0, vf.y0, vf.x1, vf.y1, vf.srcZoom);
+      const z = vf.srcZoom;
+      const n = Math.pow(2, z);
+      const minTX = Math.floor(b.minPixX / TILE_SIZE), maxTX = Math.floor(b.maxPixX / TILE_SIZE);
+      const minTY = Math.max(0, Math.floor(b.minPixY / TILE_SIZE));
+      const maxTY = Math.min(n - 1, Math.floor(b.maxPixY / TILE_SIZE));
+      const out = [];
+      for (let ty = minTY; ty <= maxTY; ty++) {
+        for (let tx = minTX; tx <= maxTX; tx++) {
+          // tx/ty giữ NGUYÊN (không bọc) để vẽ đúng chỗ; chỉ bọc khi ráp URL
+          const wx = ((tx % n) + n) % n;
+          out.push({ tx, ty, url: buildTileUrl(currentSourceKey, z, wx, ty) });
+        }
+      }
+      return out;
+    }
+
+    async function runParallelPool(items, maxConcurrency, taskFn, onProgress) {
+      let completed = 0, cursor = 0;
+      const total = items.length;
+      async function worker() {
+        while (cursor < total) {
+          const idx = cursor++;
+          const res = await taskFn(items[idx]);
+          completed++;
+          if (onProgress) onProgress(completed, total, items[idx], res);
+        }
+      }
+      const pool = [];
+      const count = Math.min(maxConcurrency, total);
+      for (let i = 0; i < count; i++) pool.push(worker());
+      await Promise.all(pool);
+    }
+
+    async function executeCapture() {
+      if (isCapturing) return;
+      isCapturing = true;
+      const startTime = performance.now();
+
+      const progressBox = $('progress-box');
+      const progressBar = $('progress-bar');
+      const statusText = $('status-text');
+      const statusPct = $('status-pct');
+      const mobileText = $('mobile-btn-text');
+
+      // Hủy prefetch nền để dành toàn bộ băng thông cho lần chụp này
+      prefetchToken++;
+      clearTimeout(prefetchTimer);
+
+      progressBox.classList.remove('hidden');
+      drawer.classList.remove('translate-y-full'); // đảm bảo user thấy tiến trình
+      progressBar.style.width = '4%';
+      statusText.textContent = t('stInit', { s: currentScale });
+
+      const vf = updateViewfinder();
+      if (!vf) { isCapturing = false; showToast(t('toastMapReady'), 'error'); return; }
+
+      // Toàn cầu: dùng ranh giới Mercator tuyệt đối thay vì viewport
+      const srcZoom = vf.srcZoom;
+      const worldSize = TILE_SIZE * Math.pow(2, srcZoom);
+
+      // Biên pixel tuyệt đối — vắt qua kinh tuyến 180° vẫn liền mạch
+      const pb = vf.world
+        ? { minPixX: 0, maxPixX: worldSize, minPixY: 0, maxPixY: worldSize }
+        : pixelBoundsAt(vf.x0, vf.y0, vf.x1, vf.y1, srcZoom);
+      const minPixX = pb.minPixX, maxPixX = pb.maxPixX;
+      const minPixY = pb.minPixY, maxPixY = pb.maxPixY;
+
+      const srcW = maxPixX - minPixX;
+      const srcH = maxPixY - minPixY;
+      const scaleX = vf.outW / srcW;
+      const scaleY = vf.outH / srcH;
+
+      // ---------- BẢN ĐỒ TRẮNG: đen = đất, trắng = biển — không cần tile, tức thì ----------
+      if (maskMode === 'blank') {
+        statusText.textContent = t('stBlankRun');
+        progressBar.style.width = '25%';
+        const doneB = (okMsg) => {
+          isCapturing = false;
+          mobileText.textContent = t('btnCapture', { s: currentScale });
+          setTimeout(() => progressBox.classList.add('hidden'), 3200);
+          if (okMsg) $('speed-indicator').textContent = okMsg;
+        };
+        const geoB = await loadLandData(maskDetail);
+        if (!geoB) { showToast(t('toastMaskNoData'), 'warn', 5000); doneB(); return; }
+        if (!window.d3 || !d3.geoMercator) { showToast(t('toastMaskNoD3'), 'warn', 5000); doneB(); return; }
+
+        const cvB = document.createElement('canvas');
+        cvB.width = vf.outW; cvB.height = vf.outH;
+        const cb = cvB.getContext('2d');
+        cb.fillStyle = '#ffffff';                       // biển = trắng
+        cb.fillRect(0, 0, vf.outW, vf.outH);
+        progressBar.style.width = '55%';
+
+        // đất = đen, cắt pixel-perfect bằng chính mask d3-geo
+        const maskB = buildLandMask(geoB, vf.outW, vf.outH, srcZoom, minPixX, minPixY, scaleX, scaleY);
+        const landB = document.createElement('canvas');
+        landB.width = vf.outW; landB.height = vf.outH;
+        const lb = landB.getContext('2d');
+        lb.fillStyle = '#000000';
+        lb.fillRect(0, 0, vf.outW, vf.outH);
+        lb.globalCompositeOperation = 'destination-in';
+        lb.drawImage(maskB, 0, 0);
+        cb.drawImage(landB, 0, 0);
+        maskB.width = maskB.height = 0; landB.width = landB.height = 0;
+        progressBar.style.width = '90%';
+
+      // Reproject sang Equirectangular (nếu chọn)
+      let finalCvB = cvB;
+      if (vf.equi) {
+        statusText.textContent = 'Đang chuyển đổi phép chiếu Equirectangular...';
+        progressBar.style.width = '95%';
+        // Nghỉ 1 frame để UI update
+        await new Promise(r => setTimeout(r, 10));
+        const eq = document.createElement('canvas');
+        eq.width = vf.outW; eq.height = vf.outH; // 2:1
+        const eqx = eq.getContext('2d');
+        const eqH = eq.height;
+        const mercH = cvB.height;
+        for (let y = 0; y < eqH; y++) {
+          const lat = 90 - (y / eqH) * 180;
+          if (lat > MAX_LAT || lat < -MAX_LAT) continue;
+          const mercY = latToY(lat, vf.srcZoom, TILE_SIZE) * (mercH / (TILE_SIZE * Math.pow(2, vf.srcZoom)));
+          eqx.drawImage(cvB, 0, Math.max(0, mercY - 0.5), cvB.width, 1, 0, y, eq.width, 1);
+        }
+        finalCvB = eq;
+        cvB.width = cvB.height = 0; // giải phóng bản Mercator
+      }
+
+      const durB = ((performance.now() - startTime) / 1000).toFixed(2);
+      const mimeB = currentFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const extB = mimeB === 'image/jpeg' ? 'jpg' : 'png';
+      finalCvB.toBlob((blob) => {
+        if (!blob) { showToast(t('toastNoBlob'), 'error'); doneB(); return; }
+        const url = URL.createObjectURL(blob);
+          const nm = `whitemap-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}-${t('fileBlank')}.${extB}`;
+          const a = document.createElement('a'); a.href = url; a.download = nm; a.click();
+          addSnapshot(url, vf.outW, vf.outH, currentRatio, durB, currentScale, (blob.size / 1048576).toFixed(2), nm);
+          progressBar.style.width = '100%'; statusPct.textContent = '100%';
+          statusText.textContent = t('stDone', { d: durB, m: (blob.size / 1048576).toFixed(2) });
+          showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: (blob.size / 1048576).toFixed(2), d: durB }), 'success');
+          doneB(`${durB}s`);
+          mobileText.textContent = captureLabelText();
+        }, mimeB, mimeB === 'image/jpeg' ? 0.92 : undefined);
+        return;
+      }
+
+      // Danh sách tile dùng chung thuật toán với prefetch (đồng bộ 100%)
+      const tileTasks = enumerateTileUrls(vf);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = vf.outW;
+      canvas.height = vf.outH;
+      const ctx = canvas.getContext('2d');
+      if (maskMode === 'all') {           // có mask → giữ nền trong suốt tuyệt đối
+        ctx.fillStyle = '#06101e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      const src = TILE_SOURCES[currentSourceKey];
+      const viaProxy = useProxy && !src.corsSafe;
+      const THREAD_COUNT = viaProxy ? 10 : (currentScale >= 16 ? 32 : 24); // HTTP/2 multiplexing
+
+      // Nguồn chặn CORS: đo & chọn proxy nhanh nhất TRƯỚC khi tải hàng loạt
+      // (tránh kịch bản mỗi tile cascade qua 3 proxy × timeout chồng nhau)
+      if (viaProxy) {
+        statusText.textContent = t('stProbe');
+        progressBar.style.width = '6%';
+        const proxyOK = await ensureFastProxy();
+        if (!proxyOK) {
+          showToast(t('toastProxyDead'), 'error', 7000);
+          $('speed-indicator').textContent = t('finCors');
+          isCapturing = false;
+          mobileText.textContent = `CHỤP ${currentScale}× (TURBO)`;
+          setTimeout(() => progressBox.classList.add('hidden'), 3200);
+          return;
+        }
+        progressBar.style.width = '8%';
+      }
+
+      let failedCount = 0;
+      let taintedUsed = false;
+      let cachedHits = 0;
+      let proxyFailStreak = 0;
+
+      await runParallelPool(
+        tileTasks,
+        THREAD_COUNT,
+        async (task) => {
+          const r = await loadTileFast(task.url, src.corsSafe);
+          return { task, ...r };
+        },
+        (done, total, item, res) => {
+          const { data, tainted, cached } = res || {};
+          if (data) {
+            if (tainted) taintedUsed = true;
+            if (cached) cachedHits++;
+            proxyFailStreak = 0;
+            // Chụp BIỂN: bỏ qua tile trắng đồng nhất (vùng cực không có dữ liệu)
+            const skipBlank = maskMode === 'ocean' && isUniformBlank(data);
+            if (!skipBlank) {
+              const dx = (item.tx * TILE_SIZE - minPixX) * scaleX;
+              const dy = (item.ty * TILE_SIZE - minPixY) * scaleY;
+              const dw = TILE_SIZE * scaleX + 0.6;
+              const dh = TILE_SIZE * scaleY + 0.6;
+              ctx.drawImage(data, dx, dy, dw, dh);
+            }
+            if (!cached && data.tagName) data.src = ''; // giải phóng <img> rồi, bản cache giữ nguyên
+          } else {
+            failedCount++;
+            if (viaProxy) {
+              proxyFailStreak++;
+              if (proxyFailStreak >= 12) {
+                // Proxy đang dùng chết giữa chừng → đổi sang proxy kế tiếp ngay lập tức
+                activeProxyIdx = (activeProxyIdx + 1) % PROXY_BUILDERS.length;
+                proxyProbePromise = null;
+                proxyFailStreak = 0;
+              }
+            }
+          }
+          const pct = Math.round((done / total) * 95);
+          progressBar.style.width = `${pct}%`;
+          statusPct.textContent = `${pct}%`;
+          statusText.textContent = cachedHits > 0
+            ? t('stTilesCache', { d: done, tot: total, c: cachedHits })
+            : t('stTiles', { d: done, tot: total, z: srcZoom });
+          mobileText.textContent = t('exporting', { p: pct });
+        }
+      );
+
+      const finish = (okMsg) => {
+        $('speed-indicator').textContent = okMsg;
+        isCapturing = false;
+        mobileText.textContent = `CHỤP ${currentScale}× (TURBO)`;
+        setTimeout(() => progressBox.classList.add('hidden'), 3200);
+      };
+
+      if (taintedUsed) {
+        showToast(t('toastCanvasBlock'), 'error', 7000);
+        finish(t('finCors'));
+        return;
+      }
+
+      if (failedCount > tileTasks.length * 0.5) {
+        // Quá nửa tile hỏng = proxy quá tải → HỦY xuất thay vì trả về ảnh rác 0.1MB
+        proxyProbePromise = null;
+        showToast(t('toastTooManyFail', { f: failedCount, tot: tileTasks.length }), 'error', 8000);
+        finish(t('finProxy'));
+        return;
+      }
+
+      if (failedCount > 0) {
+        showToast(t('toastSomeFail', { f: failedCount, tot: tileTasks.length }), 'warn', 6000);
+      }
+
+      // ---- CẮT VÙNG ĐẤT LIỀN / BIỂN (alpha mask) ----
+      if (maskMode !== 'all') {
+        statusText.textContent =
+          maskMode === 'land' ? t('stCutLand') :
+          maskMode === 'ocean' ? t('stCutOcean') : t('stComboRun');
+        progressBar.style.width = '97%';
+        const geo = await loadLandData(maskDetail);
+        if (!geo) {
+          showToast(t('toastMaskNoData'), 'warn', 5000);
+        } else if (!window.d3 || !d3.geoMercator) {
+          showToast(t('toastMaskNoD3'), 'warn', 5000);
+        } else {
+          const maskCv = buildLandMask(geo, vf.outW, vf.outH, srcZoom, minPixX, minPixY, scaleX, scaleY);
+          if (maskMode === 'combo') {
+            // Lớp phủ màu biển đục lỗ đúng phần đất liền → vẽ đè lên ảnh vệ tinh.
+            // Dùng CÙNG một mask nên bờ biển khớp pixel tuyệt đối, không hở viền.
+            const oc = document.createElement('canvas');
+            oc.width = vf.outW; oc.height = vf.outH;
+            const octx = oc.getContext('2d');
+            octx.fillStyle = oceanColor;
+            octx.fillRect(0, 0, oc.width, oc.height);
+            octx.globalCompositeOperation = 'destination-out';
+            octx.drawImage(maskCv, 0, 0);
+            octx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(oc, 0, 0);
+            oc.width = oc.height = 0;
+          } else {
+            ctx.globalCompositeOperation = maskMode === 'land' ? 'destination-in' : 'destination-out';
+            ctx.drawImage(maskCv, 0, 0);
+            ctx.globalCompositeOperation = 'source-over';
+          }
+          maskCv.width = maskCv.height = 0; // giải phóng RAM ngay
+        }
+      }
+
+      // Chỉ land/ocean cần PNG (nền trong suốt). Kết hợp là ảnh đặc → JPEG được.
+      const forcePng = maskMode === 'land' || maskMode === 'ocean';
+      const mimeType = (currentFormat === 'jpeg' && !forcePng) ? 'image/jpeg' : 'image/png';
+      const quality = mimeType === 'image/jpeg' ? 0.92 : undefined;
+
+      try {
+        finalCv.toBlob((blob) => {
+          if (!blob) {
+            showToast(t('toastNoBlob'), 'error');
+            finish(t('finMem'));
+            return;
+          }
+          const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+          const blobUrl = URL.createObjectURL(blob);
+          const sizeMB = (blob.size / 1048576).toFixed(2);
+          const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+          const MASK_TAG = { all: '', land: '-' + t('fileLand'), ocean: '-' + t('fileOcean'), combo: '-' + t('fileMap'), blank: '-' + t('fileBlank') };
+          const maskTag = MASK_TAG[maskMode] || '';
+          const filename = `satellite-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}${maskTag}.${ext}`;
+
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename;
+          a.click();
+
+          addSnapshot(blobUrl, vf.outW, vf.outH, currentRatio, totalDuration, currentScale, sizeMB, filename);
+
+          progressBar.style.width = '100%';
+          statusPct.textContent = '100%';
+          statusText.textContent = t('stDone', { d: totalDuration, m: sizeMB });
+          showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: sizeMB, d: totalDuration }), 'success');
+          finish(`${totalDuration}s (${currentScale}×)`);
+          mobileText.textContent = captureLabelText();
+        }, mimeType, quality);
+      } catch (err) {
+        showToast(t('toastCanvasBlock'), 'error', 7000);
+        finish(t('finCors'));
+      }
+    }
+
+    $('desktop-btn-capture').addEventListener('click', executeCapture);
+    $('mobile-btn-capture').addEventListener('click', executeCapture);
+
+    /* ---------- XUẤT 2 LỚP KHỚP PIXEL (cho chỉnh sửa video) ----------
+     * Tải tile MỘT LẦN → vẽ vào 2 canvas song song → tách bằng CÙNG 1 mask.
+     * Hai PNG có cùng kích thước & cùng hệ tọa độ → chồng khít trong CapCut. */
+    async function executeDualCapture() {
+      if (isCapturing) return;
+      if (!window.d3 || !d3.geoMercator) {
+        showToast(t('toastDualNoD3'), 'error', 6000);
+        return;
+      }
+      isCapturing = true;
+      const startTime = performance.now();
+      prefetchToken++; clearTimeout(prefetchTimer);
+
+      const progressBox = $('progress-box'), progressBar = $('progress-bar');
+      const statusText = $('status-text'), statusPct = $('status-pct'), mobileText = $('mobile-btn-text');
+      progressBox.classList.remove('hidden');
+      progressBar.style.width = '4%';
+      statusText.textContent = t('stDualInit');
+
+      const vf = updateViewfinder();
+      if (!vf) {
+        isCapturing = false;
+        showToast(t('toastMapReady'), 'error');
+        return;
+      }
+
+      const srcZoom = vf.srcZoom;
+      const worldSize = TILE_SIZE * Math.pow(2, srcZoom);
+      const pb = vf.world
+        ? { minPixX: 0, maxPixX: worldSize, minPixY: 0, maxPixY: worldSize }
+        : pixelBoundsAt(vf.x0, vf.y0, vf.x1, vf.y1, srcZoom);
+      const minPixX = pb.minPixX, maxPixX = pb.maxPixX;
+      const minPixY = pb.minPixY, maxPixY = pb.maxPixY;
+      const scaleX = vf.outW / (maxPixX - minPixX);
+      const scaleY = vf.outH / (maxPixY - minPixY);
+
+      // ---------- BẢN ĐỒ TRẮNG 2 LỚP: đất đen / biển trắng, nền trong suốt ----------
+      if (maskMode === 'blank') {
+        statusText.textContent = t('stBlankRun');
+        progressBar.style.width = '40%';
+        const geo = await loadLandData(maskDetail);
+        if (!geo || !window.d3 || !d3.geoMercator) {
+          showToast(t(geo ? 'toastDualNoD3' : 'toastDualNoData'), 'error', 5000);
+          isCapturing = false; mobileText.textContent = t('btnCapture', { s: currentScale });
+          setTimeout(() => progressBox.classList.add('hidden'), 3000);
+          return;
+        }
+        const maskCv = buildLandMask(geo, vf.outW, vf.outH, srcZoom, minPixX, minPixY, scaleX, scaleY);
+        const mkB = (fill, op) => {
+          const c = document.createElement('canvas');
+          c.width = vf.outW; c.height = vf.outH;
+          const x = c.getContext('2d');
+          x.fillStyle = fill; x.fillRect(0, 0, c.width, c.height);
+          x.globalCompositeOperation = op;
+          x.drawImage(maskCv, 0, 0);
+          return c;
+        };
+        const baseLand = mkB('#000000', 'destination-in');  // đất đen, biển trong suốt
+        const baseOcean = mkB('#ffffff', 'destination-out'); // biển trắng, đất trong suốt
+        maskCv.width = maskCv.height = 0;
+
+        const base = `whitemap-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}`;
+        const layersB = [
+          { cv: baseOcean, name: `${base}-${t('fileBlank')}-${t('fileOcean')}.png` },
+          { cv: baseLand,  name: `${base}-${t('fileBlank')}-${t('fileLand')}.png` }
+        ];
+        // Reproject sang Equirectangular (nếu chọn) cho 2 lớp bản đồ trắng
+        if (vf.equi) {
+          statusText.textContent = 'Đang chuyển đổi phép chiếu Equirectangular...';
+          progressBar.style.width = '95%';
+          await new Promise(r => setTimeout(r, 10));
+          for (let i = 0; i < layersB.length; i++) {
+            const cv = layersB[i].cv;
+            const eq = document.createElement('canvas');
+            eq.width = vf.outW; eq.height = vf.outH;
+            const eqx = eq.getContext('2d');
+            const eqH = eq.height, mercH = cv.height;
+            for (let y = 0; y < eqH; y++) {
+              const lat = 90 - (y / eqH) * 180;
+              if (lat > MAX_LAT || lat < -MAX_LAT) continue;
+              const mercY = latToY(lat, vf.srcZoom, TILE_SIZE) * (mercH / (TILE_SIZE * Math.pow(2, vf.srcZoom)));
+              eqx.drawImage(cv, 0, Math.max(0, mercY - 0.5), cv.width, 1, 0, y, eq.width, 1);
+            }
+            layersB[i].cv = eq;
+            cv.width = cv.height = 0;
+          }
+        }
+
+        const durB = ((performance.now() - startTime) / 1000).toFixed(2);
+        let exported = 0;
+        for (const layer of layersB) {
+          await new Promise((res) => layer.cv.toBlob((blob) => {
+            if (blob) {
+              const u = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href = u; a.download = layer.name; a.click();
+              addSnapshot(u, vf.outW, vf.outH, currentRatio, durB, currentScale, (blob.size / 1048576).toFixed(2), layer.name);
+              exported++;
+            }
+            layer.cv.width = layer.cv.height = 0; res();
+          }, 'image/png'));
+        }
+        progressBar.style.width = '100%'; statusPct.textContent = '100%';
+        statusText.textContent = t('stDone', { d: durB, m: '2×PNG' });
+        if (exported < 2) showToast(t('toastDualCors'), 'warn', 6000);
+        else showToast(t('toastDualDone', { land: `${t('fileBlank')}-${t('fileLand')}`, ocean: `${t('fileBlank')}-${t('fileOcean')}` }), 'success', 6000);
+        $('speed-indicator').textContent = `${durB}s (2×)`;
+        isCapturing = false;
+        mobileText.textContent = captureLabelText();
+        setTimeout(() => progressBox.classList.add('hidden'), 3200);
+        return;
+      }
+
+      const tileTasks = enumerateTileUrls(vf);
+
+      // Hai canvas nền: lớp đất giữ MỌI tile, lớp biển bỏ tile trắng đồng nhất
+      const baseLand = document.createElement('canvas');
+      const baseOcean = document.createElement('canvas');
+      baseLand.width = baseOcean.width = vf.outW;
+      baseLand.height = baseOcean.height = vf.outH;
+      const ctxL = baseLand.getContext('2d');
+      const ctxO = baseOcean.getContext('2d');
+      ctxL.fillStyle = '#06101e'; ctxL.fillRect(0, 0, vf.outW, vf.outH);
+      ctxO.fillStyle = '#06101e'; ctxO.fillRect(0, 0, vf.outW, vf.outH);
+
+      const src = TILE_SOURCES[currentSourceKey];
+      const viaProxy = useProxy && !src.corsSafe;
+      if (viaProxy) {
+        statusText.textContent = t('stProbe');
+        if (!(await ensureFastProxy())) {
+          showToast(t('toastProxyDead'), 'error', 6000);
+          isCapturing = false; mobileText.textContent = t('btnCapture', { s: currentScale });
+          setTimeout(() => progressBox.classList.add('hidden'), 3000);
+          return;
+        }
+      }
+
+      const THREADS = viaProxy ? 10 : (currentScale >= 16 ? 32 : 24);
+      let failed = 0;
+
+      await runParallelPool(tileTasks, THREADS,
+        async (task) => await loadTileFast(task.url, src.corsSafe),
+        (done, total, item, res) => {
+          const { data, tainted } = res || {};
+          if (data) {
+            const dx = (item.tx * TILE_SIZE - minPixX) * scaleX;
+            const dy = (item.ty * TILE_SIZE - minPixY) * scaleY;
+            const dw = TILE_SIZE * scaleX + 0.6, dh = TILE_SIZE * scaleY + 0.6;
+            ctxL.drawImage(data, dx, dy, dw, dh);               // lớp đất: giữ tất cả
+            if (!tainted && !isUniformBlank(data)) ctxO.drawImage(data, dx, dy, dw, dh); // lớp biển: bỏ vùng trống
+            if (!tainted && data.tagName) data.src = '';
+          } else failed++;
+          const pct = Math.round((done / total) * 95);
+          progressBar.style.width = `${pct}%`; statusPct.textContent = `${pct}%`;
+          statusText.textContent = t('stDualTiles', { d: done, tot: total });
+          mobileText.textContent = t('dualPct', { p: pct });
+        }
+      );
+
+      if (failed > tileTasks.length * 0.5) {
+        proxyProbePromise = null;
+        showToast(t('toastTooManyFail', { f: failed, tot: tileTasks.length }), 'error', 7000);
+        isCapturing = false; mobileText.textContent = t('btnCapture', { s: currentScale });
+        setTimeout(() => progressBox.classList.add('hidden'), 3200);
+        return;
+      }
+
+      // Tách 2 lớp bằng CÙNG MỘT mask → bờ biển trùng khớp tuyệt đối
+      statusText.textContent = t('stDualSplit');
+      progressBar.style.width = '97%';
+      const geo = await loadLandData(maskDetail);
+      if (!geo) {
+        showToast(t('toastDualNoData'), 'error', 5000);
+        isCapturing = false; mobileText.textContent = t('btnCapture', { s: currentScale });
+        return;
+      }
+      const maskCv = buildLandMask(geo, vf.outW, vf.outH, srcZoom, minPixX, minPixY, scaleX, scaleY);
+      ctxL.globalCompositeOperation = 'destination-in';  // đất: giữ phần trong mask
+      ctxL.drawImage(maskCv, 0, 0);
+      ctxL.globalCompositeOperation = 'source-over';
+      ctxO.globalCompositeOperation = 'destination-out'; // biển: đục bỏ phần đất
+      ctxO.drawImage(maskCv, 0, 0);
+      ctxO.globalCompositeOperation = 'source-over';
+      maskCv.width = maskCv.height = 0;
+
+      // Reproject sang Equirectangular (nếu chọn) cho 2 lớp vệ tinh
+      if (vf.equi) {
+        statusText.textContent = 'Đang chuyển đổi phép chiếu Equirectangular...';
+        progressBar.style.width = '98%';
+        await new Promise(r => setTimeout(r, 10));
+        for (const layer of [{cv: baseOcean}, {cv: baseLand}]) {
+          const cv = layer.cv;
+          const eq = document.createElement('canvas');
+          eq.width = vf.outW; eq.height = vf.outH;
+          const eqx = eq.getContext('2d');
+          const eqH = eq.height, mercH = cv.height;
+          for (let y = 0; y < eqH; y++) {
+            const lat = 90 - (y / eqH) * 180;
+            if (lat > MAX_LAT || lat < -MAX_LAT) continue;
+            const mercY = latToY(lat, vf.srcZoom, TILE_SIZE) * (mercH / (TILE_SIZE * Math.pow(2, vf.srcZoom)));
+            eqx.drawImage(cv, 0, Math.max(0, mercY - 0.5), cv.width, 1, 0, y, eq.width, 1);
+          }
+          if (layer.cv === baseOcean) { baseOcean.width = baseOcean.height = 0; baseOcean = eq; }
+          if (layer.cv === baseLand) { baseLand.width = baseLand.height = 0; baseLand = eq; }
+        }
+      }
+
+      // Xuất tuần tự 2 PNG
+      const base = `satellite-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}`;
+      const layers = [
+        { cv: baseOcean, name: `${base}-${t('fileOcean')}.png` },
+        { cv: baseLand,  name: `${base}-${t('fileLand')}.png` }
+      ];
+      const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+
+      let exportedLayers = 0;
+      for (const layer of layers) {
+        await new Promise((resolve) => {
+          try {
+            layer.cv.toBlob((blob) => {
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = layer.name; a.click();
+                addSnapshot(url, vf.outW, vf.outH, currentRatio, totalDuration, currentScale, (blob.size / 1048576).toFixed(2), layer.name);
+                exportedLayers++;
+              }
+              layer.cv.width = layer.cv.height = 0;
+              resolve();
+            }, 'image/png');
+          } catch (_) { // canvas tainted (nguồn chặn CORS) → bỏ lớp này
+            layer.cv.width = layer.cv.height = 0;
+            resolve();
+          }
+        });
+      }
+      if (exportedLayers < 2) {
+        showToast(t('toastDualCors'), 'warn', 6000);
+      }
+
+      progressBar.style.width = '100%'; statusPct.textContent = '100%';
+      statusText.textContent = t('stDone', { d: totalDuration, m: '2×PNG' });
+      showToast(t('toastDualDone', { land: t('fileLand'), ocean: t('fileOcean') }), 'success', 6000);
+      $('speed-indicator').textContent = `${totalDuration}s (2×)`;
+      isCapturing = false;
+      mobileText.textContent = captureLabelText();
+      setTimeout(() => progressBox.classList.add('hidden'), 3200);
+    }
+
+    $('btn-dual-export').addEventListener('click', executeDualCapture);
+
+    /* ============================================================
+     * 7b. PREFETCH ENGINE — TẢI TRƯỚC ĐỂ CHỤP "TỨC THÌ"
+     * ============================================================ */
+    let prefetchTimer = null;
+    let prefetchToken = 0;
+
+    function schedulePrefetch(delay = 380) {
+      clearTimeout(prefetchTimer);
+      if (captureArea === 'world' || isCapturing) return; // toàn cầu: vùng không đổi theo pan → không prefetch nền
+      const tk = ++prefetchToken;
+      prefetchTimer = setTimeout(() => prefetchViewfinder(tk), delay);
+    }
+
+    /** Prefetch "nhẹ" cho nguồn chặn CORS: chỉ dùng 1 proxy nhanh nhất,
+     *  ít luồng hơn để không spam dịch vụ proxy công cộng. */
+    async function loadTileLight(url, corsSafe) {
+      if (corsSafe) return loadTileFast(url, true);
+      try {
+        // Dùng đúng proxy nhanh nhất đã đo (mặc định weserv)
+        const entry = await fetchTileEntry(PROXY_BUILDERS[activeProxyIdx](url), 12000);
+        cacheSet(url, entry);
+        return { data: entry.data, tainted: false, cached: false };
+      } catch (_) {
+        return { data: null }; // im lặng — lúc chụp sẽ chạy fallback đầy đủ
+      }
+    }
+
+    async function prefetchViewfinder(token) {
+      if (isCapturing) return;
+      const src = TILE_SOURCES[currentSourceKey];
+      const viaProxy = !src.corsSafe && useProxy;
+      if (!src.corsSafe && !useProxy) return; // tắt proxy = không xuất được → khỏi prefetch
+
+      const vf = updateViewfinder();
+      if (!vf) return;
+      const tasks = enumerateTileUrls(vf);
+      const limit = viaProxy ? PREFETCH_LIMIT_PROXY : PREFETCH_LIMIT;
+      if (tasks.length === 0 || tasks.length > limit) return;
+
+      const workers = viaProxy ? 3 : 8;
+      await runParallelPool(tasks, workers, async (t) => {
+        if (token !== prefetchToken || isCapturing) return; // đã pan/chụp → hủy
+        if (!tileCache.has(t.url)) await loadTileLight(t.url, src.corsSafe);
+      });
+
+      if (token === prefetchToken) {
+        $('info-cache').textContent = `${tileCache.size} tiles`;
+      }
+    }
+
+    /** Mở sẵn kết nối HTTP/2 + hâm nóng DNS/proxy cho NGUỒN ĐANG CHỌN */
+    function warmupConnection(key = currentSourceKey) {
+      try {
+        const src = TILE_SOURCES[key];
+        if (!src.corsSafe && useProxy) ensureFastProxy(true); // đo proxy ngay khi chọn nguồn
+        loadTileFast(buildTileUrl(key, 2, 2, 1), src.corsSafe);
+        loadTileFast(buildTileUrl(key, 2, 1, 1), src.corsSafe);
+      } catch (_) {}
+    }
+
+    map.on('moveend zoomend', () => schedulePrefetch(220));
+
+    /* ============================================================
+     * 8. LỊCH SỬ ẢNH ĐÃ CHỤP
+     * ============================================================ */
+    const snapshotItems = [];
+
+    function renderSnapshotsList() {
+      const list = $('snapshots-list');
+      $('snap-count').textContent = `${snapshotItems.length} ${t('shotsUnit')}`;
+      if (snapshotItems.length === 0) {
+        list.innerHTML = `<div class="text-center py-3 border border-dashed border-white/10 rounded-xl text-xs text-slate-500">${t('shotsEmpty')}</div>`;
+        return;
+      }
+      list.innerHTML = snapshotItems.map(s => `
+        <div class="flex gap-2 p-2 rounded-xl bg-slate-950/70 border border-white/10 items-center">
+          <a href="${s.url}" target="_blank" rel="noopener" class="shrink-0">
+            <img src="${s.url}" class="w-16 h-11 object-cover rounded-lg border border-white/10 alpha-checker" alt="snapshot" />
+          </a>
+          <div class="flex-1 min-w-0 text-[11px]">
+            <div class="font-bold text-white truncate">${s.ratio === 'free' ? 'FULL' : s.ratio.toUpperCase()} • ${s.scale}× • ${s.w}×${s.h}px</div>
+            <div class="text-slate-400 font-mono truncate">${s.sizeMB} MB • ${s.time}</div>
+            <div class="text-emerald-400 font-mono flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i>${s.duration}s</div>
+          </div>
+          <a href="${s.url}" download="${s.filename}" class="px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-cyan-300 flex items-center gap-1 shrink-0">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> ${t('download')}
+          </a>
+        </div>
+      `).join('');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function addSnapshot(url, w, h, ratio, duration, scl, sizeMB, filename) {
+      snapshotItems.unshift({ url, w, h, ratio, duration, scale: scl, sizeMB, filename, time: new Date().toLocaleTimeString(lang === 'en' ? 'en-GB' : 'vi-VN') });
+      while (snapshotItems.length > 6) {
+        const old = snapshotItems.pop();
+        try { URL.revokeObjectURL(old.url); } catch (e) {}
+      }
+      renderSnapshotsList();
+    }
+
+    /* ============================================================
+     * 9. KHỞI ĐỘNG (sau khi mọi thứ đã định nghĩa)
+     * ============================================================ */
+    applyTileLayer(currentSourceKey);
+    initMobileAutoFix();
+    markActive([...document.querySelectorAll('.quick-scale-btn')], 'data-setscale', '2');
+    $('lang-btn').addEventListener('click', () => setLang(lang === 'vi' ? 'en' : 'vi'));
+    renderProviderButtons();
+    applyLanguage(); // áp dụng ngôn ngữ đã lưu (VI/EN)
+    $('provider-count').textContent = providerCountLabel();
+    if (window.lucide) lucide.createIcons();
+    warmupConnection();
+    requestAnimationFrame(() => {
+      map.invalidateSize({ pan: false });
+      updateViewfinder();
+      schedulePrefetch(500);
+    });
+  </script>
+</body>
+</html>
