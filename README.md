@@ -6,8 +6,14 @@ Static Leaflet map capture studio with Vietnamese and English UI.
 
 The source picker keeps these maps above the independently scrolling provider list:
 
-- **Satellite World Map** — Esri World Imagery, without labels. Reuses the existing `esri` provider (previously named “Esri Clarity”), so the default source and export behavior are preserved without a duplicate entry.
-- **Natural Earth / Physical World Map** — Natural Earth shaded terrain served by EOX. Native tiles stop at zoom 8; closer views are upscaled. Exports respect that native zoom limit rather than requesting unavailable tiles.
+- **Satellite World Map** — EOX Sentinel-2 Cloudless 2016: a label-free satellite mosaic with dark oceans, chosen as an interactive alternative to the supplied dark satellite reference. Uses the published Web Mercator `s2cloudless_3857` layer, native zoom up to 14. This is the default source. The 2016 imagery is licensed CC BY 4.0; retain EOX/Copernicus attribution when redistributing captures.
+- **Natural Earth / Physical World Map** — Natural Earth II shaded relief from OpenFreeMap (`natural_earth/ne2sr`), chosen for the supplied reference's pale land colors and blue ocean relief, rather than EOX terrain. Native zoom up to 6; closer views are upscaled. The Natural Earth data is public domain.
+
+The original **Esri World Imagery** remains a separate, unpinned option. The supplied screenshots are visual references only, not georeferenced assets; these interactive alternatives are not guaranteed to be pixel-identical. Exports respect each source's native zoom limit rather than requesting unavailable tiles.
+
+Source references:
+- EOX layer identifiers and licensing: https://tiles.maps.eox.at/wmts/1.0.0/WMTSCapabilities.xml
+- Natural Earth tile source and zoom metadata: https://tiles.openfreemap.org/styles/liberty
 
 Both are searchable and use the existing preview, prefetch, and image-export pipeline. Provider attribution is shown on the map. Check each provider's terms before redistributing imagery.
 

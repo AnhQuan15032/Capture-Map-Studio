@@ -22,7 +22,7 @@ function harness() {
     map: { removeLayer() {} },
     L: { tileLayer: (url, opts) => { const layer = { url, opts, addTo() {} }; layers.push(layer); return layer; } },
   });
-  vm.runInContext(`${sources}\nlet providerSearch = ''; let currentSourceKey = 'esri';\n${picker}\n${tileBuilder}`, context);
+  vm.runInContext(`${sources}\nlet providerSearch = ''; let currentSourceKey = 'satellite_world';\n${picker}\n${tileBuilder}`, context);
   return { elements, layers, run: code => vm.runInContext(code, context) };
 }
 
@@ -36,11 +36,12 @@ test('world maps are pinned above the scrolling list, with no duplicates', () =>
   const pinned = elements['pinned-provider-buttons'].innerHTML;
   assert.match(pinned, /Satellite World Map/);
   assert.match(pinned, /Natural Earth \/ Physical World Map/);
-  assert.ok(pinned.indexOf('data-source="esri"') < pinned.indexOf('data-source="natural_earth"'));
-  assert.doesNotMatch(elements['provider-buttons'].innerHTML, /data-source="(?:esri|natural_earth)"/);
+  assert.ok(pinned.indexOf('data-source="satellite_world"') < pinned.indexOf('data-source="natural_earth"'));
+  assert.doesNotMatch(elements['provider-buttons'].innerHTML, /data-source="(?:satellite_world|natural_earth)"/);
   assert.match(pinned, /aria-pressed="true"/);
+  assert.match(elements['provider-buttons'].innerHTML, /Esri World Imagery/);
   assert.ok(html.indexOf('id="pinned-provider-buttons"') < html.indexOf('id="provider-buttons"'));
-  assert.equal(elements['provider-count'].textContent, '22 src');
+  assert.equal(elements['provider-count'].textContent, '23 src');
 });
 
 test('search includes pinned providers and preserves counts after switching layers', () => {
@@ -49,7 +50,7 @@ test('search includes pinned providers and preserves counts after switching laye
   assert.match(elements['pinned-provider-buttons'].innerHTML, /Physical World Map/);
   assert.doesNotMatch(elements['pinned-provider-buttons'].innerHTML, /Satellite World Map/);
   assert.equal(elements['provider-buttons'].innerHTML, '');
-  assert.equal(elements['provider-count'].textContent, '1/22 src');
+  assert.equal(elements['provider-count'].textContent, '1/23 src');
   run("providerSearch = 'not-a-map'; renderProviderButtons()");
   assert.equal(elements['pinned-provider-buttons'].style.display, 'none');
   assert.match(elements['provider-buttons'].innerHTML, /No provider/);
@@ -60,10 +61,10 @@ test('search includes pinned providers and preserves counts after switching laye
 test('Natural Earth preview and export use the same XYZ source, zoom cap and attribution', () => {
   const { elements, layers, run } = harness();
   run("applyTileLayer('natural_earth')");
-  assert.equal(layers[0].opts.maxNativeZoom, 8);
-  assert.match(layers[0].opts.attribution, /EOX.*Natural Earth/);
+  assert.equal(layers[0].opts.maxNativeZoom, 6);
+  assert.match(layers[0].opts.attribution, /Natural Earth II.*OpenFreeMap/);
   assert.equal(elements['hud-source'].textContent, 'Natural Earth / Physical World Map');
-  assert.equal(run("buildTileUrl('natural_earth', 3, 4, 2)"), 'https://tiles.maps.eox.at/wmts/1.0.0/ne_terrain2/default/g/3/2/4.jpg');
+  assert.equal(run("buildTileUrl('natural_earth', 3, 4, 2)"), 'https://tiles.openfreemap.org/natural_earth/ne2sr/3/4/2.png');
   assert.equal(run("buildTileUrl('esri', 3, 4, 2)"), 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/3/2/4');
 });
 
@@ -71,4 +72,17 @@ test('both languages include pinned labels and source descriptions', () => {
   for (const key of ['srcPinned', 'srcSubSatelliteWorld', 'srcSubNaturalEarth']) {
     assert.equal([...script.matchAll(new RegExp(`${key}:`, 'g'))].length, 2);
   }
+});
+
+test('pinned satellite uses Sentinel-2, not renamed Esri imagery', () => {
+  const { elements, layers, run } = harness();
+  run("applyTileLayer('satellite_world')");
+  assert.equal(layers[0].opts.maxNativeZoom, 14);
+  assert.match(layers[0].url, /s2cloudless_3857/);
+  assert.match(layers[0].opts.attribution, /Copernicus Sentinel data 2016/);
+  assert.match(layers[0].opts.attribution, /CC BY 4.0/);
+  assert.equal(elements['hud-source'].textContent, 'Satellite World Map');
+  assert.equal(run("buildTileUrl('satellite_world', 3, 4, 2)"), 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/3/2/4.jpg');
+  assert.notEqual(run('TILE_SOURCES.satellite_world.url'), run('TILE_SOURCES.esri.url'));
+  assert.match(html, /let currentSourceKey = 'satellite_world'/);
 });

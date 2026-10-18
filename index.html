@@ -24,6 +24,8 @@
   <script src="https://cdn.jsdelivr.net/npm/d3-geo@3"></script>
 
   <!-- Preconnect: mở sẵn kết nối tới máy chủ tile để chụp nhanh hơn -->
+  <link rel="preconnect" href="https://tiles.maps.eox.at" crossorigin />
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
   <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
   <link rel="preconnect" href="https://gibs.earthdata.nasa.gov" crossorigin />
   <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin />
@@ -586,7 +588,7 @@
     let currentRatio = '16:9';
     let currentScale = 2;
     let currentFormat = 'jpeg';
-    let currentSourceKey = 'esri';
+    let currentSourceKey = 'satellite_world';
     let useProxy = true;
     let isCapturing = false;
 
@@ -611,8 +613,8 @@
         warnUnsafe: '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.',
         outSize: 'Kích thước ảnh xuất:', outMp: 'Tổng số megapixel:', outTiles: 'Số mảnh tile cần tải:',
         outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'TẮT — rủi ro cao',
-        srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'Ảnh vệ tinh toàn cầu không nhãn · Esri World Imagery',
-        srcSubNaturalEarth: 'Địa hình Natural Earth · EOX · zoom gốc tối đa 8',
+        srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'EOX Sentinel-2 Cloudless 2016 · biển tối · zoom gốc 14',
+        srcSubNaturalEarth: 'Natural Earth II · địa hình & đáy biển xanh nhạt · zoom gốc 6',
         srcTitle: 'Nguồn ảnh vệ tinh', srcSubEsri: 'CORS OK — xuất ổn định 100%',
         srcSubProxy: 'Proxy CORS + prefetch nhẹ', srcSubOsm: 'Bản đồ giao thông',
         srcSubFirefly: 'Esri tông điện ảnh / night style', srcSubUsgs: 'USGS ảnh vệ tinh công khai', srcSubUsgsTopo: 'USGS ảnh vệ tinh + topo / nhãn',
@@ -661,19 +663,19 @@
         toast10m: 'Bờ biển 10m nặng ~4MB, lần tải đầu có thể mất vài giây.',
         toastWorld: 'Chế độ <b>Toàn cầu</b>: độ phân giải do Scale quyết định (16× = 4096px, 32× = 8192px desktop).',
         toastRuntime: 'Lỗi runtime: {m}',
-        toastProxyDead: '<b>Cả 3 proxy CORS đều không phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Satellite World Map.',
+        toastProxyDead: '<b>Cả 3 proxy CORS đều không phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri World Imagery.',
         toastTooManyFail: '<b>{f}/{tot} tiles thất bại</b> — proxy CORS đang quá tải nên đã hủy xuất. Bấm chụp lại: engine sẽ tự đo & đổi sang proxy khác.',
         toastSomeFail: '{f}/{tot} tiles tải thất bại (mạng yếu hoặc nguồn giới hạn). Ảnh có thể có vệt trống.',
         toastExportOk: '<b>Xuất ảnh thành công!</b> {w}×{h}px • {m} MB • {d}s',
         toastNoBlob: 'Không tạo được ảnh từ Canvas (thiết bị quá tải). Hãy giảm hệ số Scale.',
-        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Satellite World Map hoặc bật Proxy CORS.',
+        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri World Imagery hoặc bật Proxy CORS.',
         toastMapReady: 'Bản đồ chưa sẵn sàng, thử lại sau giây lát.',
         toastFlipInfo: 'Chỉ hỗ trợ đảo chiều nhanh giữa 16:9 và 9:16.',
         toastMaskNoData: 'Không tải được dữ liệu bờ biển — ảnh xuất giữ nguyên toàn vùng.',
         toastMaskNoD3: 'Thiếu thư viện d3-geo — bỏ qua bộ lọc vùng cho lần chụp này.',
         toastDualNoD3: 'Thiếu thư viện d3-geo — không tách được 2 lớp.',
         toastDualNoData: 'Không tải được dữ liệu bờ biển.',
-        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Satellite World Map</b>.',
+        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Esri World Imagery</b>.',
         toastDualDone: '<b>Đã xuất 2 lớp khớp pixel!</b> Chồng <code>-{land}.png</code> lên <code>-{ocean}.png</code> trong editor — không hở viền.',
         toastPreviewFail: 'Không hiển thị được lớp xem trước bờ biển.',
         fileLand: 'datlien', fileOcean: 'bien', fileMap: 'ban-do', fileBlank: 'ban-do-trang',
@@ -695,8 +697,8 @@
         warnUnsafe: '<b>Safety limit OFF:</b> the canvas follows Scale exactly, capped only at the browser ceiling of 16384px. Huge images may crash the tab — at your own risk.',
         outSize: 'Output size:', outMp: 'Total megapixels:', outTiles: 'Tiles to fetch:',
         outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'OFF — high risk',
-        srcPinned: 'Pinned', srcSubSatelliteWorld: 'Label-free global satellite imagery · Esri World Imagery',
-        srcSubNaturalEarth: 'Natural Earth relief · EOX · native zoom up to 8',
+        srcPinned: 'Pinned', srcSubSatelliteWorld: 'EOX Sentinel-2 Cloudless 2016 · dark oceans · native zoom 14',
+        srcSubNaturalEarth: 'Natural Earth II · pale relief & blue bathymetry · native zoom 6',
         srcTitle: 'Satellite imagery source', srcSubEsri: 'CORS OK — 100% stable export',
         srcSubProxy: 'CORS proxy + light prefetch', srcSubOsm: 'Street map',
         srcSubFirefly: 'Esri cinematic / firefly style', srcSubUsgs: 'Public USGS satellite imagery', srcSubUsgsTopo: 'USGS imagery + topo / labels',
@@ -745,19 +747,19 @@
         toast10m: '10m coastlines are ~4MB; first load may take a few seconds.',
         toastWorld: '<b>Global mode:</b> resolution is set by Scale (16× = 4096px, 32× = 8192px on desktop).',
         toastRuntime: 'Runtime error: {m}',
-        toastProxyDead: '<b>All 3 CORS proxies unresponsive.</b> Try again later or switch to Satellite World Map.',
+        toastProxyDead: '<b>All 3 CORS proxies unresponsive.</b> Try again later or switch to Esri World Imagery.',
         toastTooManyFail: '<b>{f}/{tot} tiles failed</b> — CORS proxy overloaded, export cancelled. Capture again: the engine will re-probe and switch proxies.',
         toastSomeFail: '{f}/{tot} tiles failed (weak network or source limit). Image may have blank streaks.',
         toastExportOk: '<b>Export successful!</b> {w}×{h}px • {m} MB • {d}s',
         toastNoBlob: 'Could not encode canvas (device overloaded). Lower the Scale factor.',
-        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Satellite World Map or enable the CORS proxy.',
+        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri World Imagery or enable the CORS proxy.',
         toastMapReady: 'Map not ready yet, try again in a moment.',
         toastFlipInfo: 'Quick flip only works between 16:9 and 9:16.',
         toastMaskNoData: 'Could not load coastline data — export keeps the full region.',
         toastMaskNoD3: 'Missing d3-geo library — region filter skipped for this capture.',
         toastDualNoD3: 'Missing d3-geo library — cannot split 2 layers.',
         toastDualNoData: 'Could not load coastline data.',
-        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Satellite World Map</b>.',
+        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Esri World Imagery</b>.',
         toastDualDone: '<b>2 pixel-matched layers exported!</b> Stack <code>-{land}.png</code> over <code>-{ocean}.png</code> in your editor — zero seams.',
         toastPreviewFail: 'Could not render the coastline preview layer.',
         fileLand: 'land', fileOcean: 'ocean', fileMap: 'map', fileBlank: 'white-map',
@@ -861,8 +863,9 @@
     })();
 
     const TILE_SOURCES = {
-      esri: { name: "Satellite World Map", pinned: true, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community', uiIcon: "satellite", noteKey: "srcSubSatelliteWorld", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
-      natural_earth: { name: "Natural Earth / Physical World Map", pinned: true, attribution: '&copy; <a href="https://s2maps.eu/" target="_blank" rel="noopener">EOX</a> / Natural Earth', uiIcon: "mountain", noteKey: "srcSubNaturalEarth", category: 'ref', url: "https://tiles.maps.eox.at/wmts/1.0.0/ne_terrain2/default/g/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
+      satellite_world: { name: "Satellite World Map", pinned: true, attribution: '<a href="https://cloudless.eox.at/" target="_blank" rel="noopener">EOX Sentinel-2 cloudless</a> (Contains modified Copernicus Sentinel data 2016), <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>', uiIcon: "satellite", noteKey: "srcSubSatelliteWorld", category: 'sat', url: "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg", maxZoom: 14, corsSafe: true },
+      natural_earth: { name: "Natural Earth / Physical World Map", pinned: true, attribution: '<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth II</a> (public domain), tiles by <a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a>', uiIcon: "mountain", noteKey: "srcSubNaturalEarth", category: 'ref', url: "https://tiles.openfreemap.org/natural_earth/ne2sr/{z}/{x}/{y}.png", maxZoom: 6, corsSafe: true },
+      esri: { name: "Esri World Imagery", attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community', uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_firefly: { name: "Esri Firefly", uiIcon: "sparkles", noteKey: "srcSubFirefly", category: 'sat', url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_topo: { name: "Esri Topo", uiIcon: "map", noteKey: "srcSubEsriTopo", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_street: { name: "Esri Street", uiIcon: "route", noteKey: "srcSubEsriStreet", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
