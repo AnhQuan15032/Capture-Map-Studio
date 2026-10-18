@@ -61,10 +61,10 @@ test('search includes pinned providers and preserves counts after switching laye
 test('Natural Earth preview and export use the same XYZ source, zoom cap and attribution', () => {
   const { elements, layers, run } = harness();
   run("applyTileLayer('natural_earth')");
-  assert.equal(layers[0].opts.maxNativeZoom, 6);
-  assert.match(layers[0].opts.attribution, /Natural Earth II.*OpenFreeMap/);
+  assert.equal(layers[0].opts.maxNativeZoom, 8);
+  assert.match(layers[0].opts.attribution, /OpenStreetMap.*Natural Earth.*EOX/);
   assert.equal(elements['hud-source'].textContent, 'Natural Earth / Physical World Map');
-  assert.equal(run("buildTileUrl('natural_earth', 3, 4, 2)"), 'https://tiles.openfreemap.org/natural_earth/ne2sr/3/4/2.png');
+  assert.equal(run("buildTileUrl('natural_earth', 3, 4, 2)"), 'https://tiles.maps.eox.at/wmts/1.0.0/terrain_3857/default/g/3/2/4.jpg');
   assert.equal(run("buildTileUrl('esri', 3, 4, 2)"), 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/3/2/4');
 });
 
@@ -74,15 +74,22 @@ test('both languages include pinned labels and source descriptions', () => {
   }
 });
 
-test('pinned satellite uses Sentinel-2, not renamed Esri imagery', () => {
+test('pinned satellite uses NASA relief and bathymetry, not Sentinel-2 or Esri', () => {
   const { elements, layers, run } = harness();
   run("applyTileLayer('satellite_world')");
-  assert.equal(layers[0].opts.maxNativeZoom, 14);
-  assert.match(layers[0].url, /s2cloudless_3857/);
-  assert.match(layers[0].opts.attribution, /Copernicus Sentinel data 2016/);
-  assert.match(layers[0].opts.attribution, /CC BY 4.0/);
+  assert.equal(layers[0].opts.maxNativeZoom, 8);
+  assert.match(layers[0].url, /BlueMarble_ShadedRelief_Bathymetry/);
+  assert.match(layers[0].opts.attribution, /NASA Blue Marble/);
   assert.equal(elements['hud-source'].textContent, 'Satellite World Map');
-  assert.equal(run("buildTileUrl('satellite_world', 3, 4, 2)"), 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/3/2/4.jpg');
+  assert.equal(run("buildTileUrl('satellite_world', 3, 4, 2)"), 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//EPSG3857_500m/3/2/4.jpeg');
   assert.notEqual(run('TILE_SOURCES.satellite_world.url'), run('TILE_SOURCES.esri.url'));
   assert.match(html, /let currentSourceKey = 'satellite_world'/);
+});
+
+test('world presets do not regress to land-only relief or Sentinel-2', () => {
+  const { run } = harness();
+  assert.doesNotMatch(run('TILE_SOURCES.natural_earth.url'), /ne2sr|ne_terrain2/);
+  assert.doesNotMatch(run('TILE_SOURCES.satellite_world.url'), /s2cloudless|World_Imagery/);
+  assert.equal(run('TILE_SOURCES.nasa_blue.url'), run('TILE_SOURCES.satellite_world.url'));
+  assert.equal(run('TILE_SOURCES.natural_earth.maxZoom'), 8);
 });

@@ -25,7 +25,6 @@
 
   <!-- Preconnect: mở sẵn kết nối tới máy chủ tile để chụp nhanh hơn -->
   <link rel="preconnect" href="https://tiles.maps.eox.at" crossorigin />
-  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
   <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
   <link rel="preconnect" href="https://gibs.earthdata.nasa.gov" crossorigin />
   <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin />
@@ -613,8 +612,8 @@
         warnUnsafe: '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.',
         outSize: 'Kích thước ảnh xuất:', outMp: 'Tổng số megapixel:', outTiles: 'Số mảnh tile cần tải:',
         outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'TẮT — rủi ro cao',
-        srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'EOX Sentinel-2 Cloudless 2016 · biển tối · zoom gốc 14',
-        srcSubNaturalEarth: 'Natural Earth II · địa hình & đáy biển xanh nhạt · zoom gốc 6',
+        srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'NASA Blue Marble · địa hình & đáy biển · zoom gốc 8',
+        srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · biển xanh · mức tile tối đa 8',
         srcTitle: 'Nguồn ảnh vệ tinh', srcSubEsri: 'CORS OK — xuất ổn định 100%',
         srcSubProxy: 'Proxy CORS + prefetch nhẹ', srcSubOsm: 'Bản đồ giao thông',
         srcSubFirefly: 'Esri tông điện ảnh / night style', srcSubUsgs: 'USGS ảnh vệ tinh công khai', srcSubUsgsTopo: 'USGS ảnh vệ tinh + topo / nhãn',
@@ -697,8 +696,8 @@
         warnUnsafe: '<b>Safety limit OFF:</b> the canvas follows Scale exactly, capped only at the browser ceiling of 16384px. Huge images may crash the tab — at your own risk.',
         outSize: 'Output size:', outMp: 'Total megapixels:', outTiles: 'Tiles to fetch:',
         outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'OFF — high risk',
-        srcPinned: 'Pinned', srcSubSatelliteWorld: 'EOX Sentinel-2 Cloudless 2016 · dark oceans · native zoom 14',
-        srcSubNaturalEarth: 'Natural Earth II · pale relief & blue bathymetry · native zoom 6',
+        srcPinned: 'Pinned', srcSubSatelliteWorld: 'NASA Blue Marble · shaded relief & bathymetry · native zoom 8',
+        srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · blue oceans · tile zoom capped at 8',
         srcTitle: 'Satellite imagery source', srcSubEsri: 'CORS OK — 100% stable export',
         srcSubProxy: 'CORS proxy + light prefetch', srcSubOsm: 'Street map',
         srcSubFirefly: 'Esri cinematic / firefly style', srcSubUsgs: 'Public USGS satellite imagery', srcSubUsgsTopo: 'USGS imagery + topo / labels',
@@ -863,8 +862,10 @@
     })();
 
     const TILE_SOURCES = {
-      satellite_world: { name: "Satellite World Map", pinned: true, attribution: '<a href="https://cloudless.eox.at/" target="_blank" rel="noopener">EOX Sentinel-2 cloudless</a> (Contains modified Copernicus Sentinel data 2016), <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>', uiIcon: "satellite", noteKey: "srcSubSatelliteWorld", category: 'sat', url: "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg", maxZoom: 14, corsSafe: true },
-      natural_earth: { name: "Natural Earth / Physical World Map", pinned: true, attribution: '<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth II</a> (public domain), tiles by <a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a>', uiIcon: "mountain", noteKey: "srcSubNaturalEarth", category: 'ref', url: "https://tiles.openfreemap.org/natural_earth/ne2sr/{z}/{x}/{y}.png", maxZoom: 6, corsSafe: true },
+      // Use the ocean-inclusive variants: land-only relief leaves white oceans.
+      satellite_world: { name: "Satellite World Map", pinned: true, attribution: '<a href="https://earthobservatory.nasa.gov/features/BlueMarble" target="_blank" rel="noopener">NASA Blue Marble</a>, imagery via <a href="https://www.earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs" target="_blank" rel="noopener">NASA GIBS</a>', uiIcon: "satellite", noteKey: "srcSubSatelliteWorld", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//EPSG3857_500m/{z}/{y}/{x}.jpeg", maxZoom: 8, corsSafe: true },
+      // Keep this world-relief preset at z8; EOX can render more local detail beyond it.
+      natural_earth: { name: "Natural Earth / Physical World Map", pinned: true, attribution: '<a href="https://maps.eox.at/" target="_blank" rel="noopener">Terrain</a> { Data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors and <a href="https://maps.eox.at/#data" target="_blank" rel="noopener">others (Natural Earth)</a>, Rendering &copy; <a href="https://eox.at/" target="_blank" rel="noopener">EOX</a> }', uiIcon: "mountain", noteKey: "srcSubNaturalEarth", category: 'ref', url: "https://tiles.maps.eox.at/wmts/1.0.0/terrain_3857/default/g/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
       esri: { name: "Esri World Imagery", attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community', uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_firefly: { name: "Esri Firefly", uiIcon: "sparkles", noteKey: "srcSubFirefly", category: 'sat', url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_topo: { name: "Esri Topo", uiIcon: "map", noteKey: "srcSubEsriTopo", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
@@ -874,7 +875,7 @@
       esri_light: { name: "Esri Light Gray", uiIcon: "sun-medium", noteKey: "srcSubEsriLight", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", maxZoom: 16, corsSafe: true },
       usgs: { name: "USGS Imagery", uiIcon: "mountain-snow", noteKey: "srcSubUsgs", category: 'sat', url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       usgs_topo: { name: "USGS Imagery Topo", uiIcon: "map", noteKey: "srcSubUsgsTopo", category: 'hybrid', url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
-      nasa_blue: { name: "NASA Blue Marble", uiIcon: "globe-2", noteKey: "srcSubNasaBlue", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
+      nasa_blue: { name: "NASA Blue Marble", uiIcon: "globe-2", noteKey: "srcSubNasaBlue", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//EPSG3857_500m/{z}/{y}/{x}.jpeg", maxZoom: 8, corsSafe: true },
       nasa_viirs: { name: "NASA VIIRS True Color", uiIcon: "orbit", noteKey: "srcSubNasaTerra", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", time: gibsRecentDate, maxZoom: 9, corsSafe: true },
       nasa_night: { name: "NASA City Lights", uiIcon: "moon-star", noteKey: "srcSubNasaNight", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default//GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
       bing: { name: "Bing Satellite", uiIcon: "globe", noteKey: "srcSubProxy", category: 'sat', url: "https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=14364&n=z", maxZoom: 22, subdomains: ["0", "1", "2", "3"], scheme: "bing-quadkey", corsSafe: false },
