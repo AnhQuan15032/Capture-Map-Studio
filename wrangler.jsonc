@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "capture-map-studio",
+  "compatibility_date": "2025-09-01",
+  // Static site served by Cloudflare Workers Static Assets (no Worker script needed).
+  // Build first with `npm run build` — output goes to ./dist
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

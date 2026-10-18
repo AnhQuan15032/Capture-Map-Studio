@@ -1,0 +1,20 @@
+{
+  "name": "capture-map-studio",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Satellite Capture Studio — export ultra-high-resolution satellite / world map images with a live viewfinder.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && wrangler dev --ip 0.0.0.0 --port 8787",
+    "preview": "npm run build && npx --yes serve dist -l 8787",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:pages": "npm run build && wrangler pages deploy dist --project-name capture-map-studio"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.1"
+  }
+}
