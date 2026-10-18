@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "capture-map-studio",
+  "compatibility_date": "2026-10-18",
+  "assets": {
+    "directory": "./dist"
+  },
+  "build": {
+    "command": "npm run build"
+  },
+  "previews": {}
+}

@@ -194,7 +194,7 @@
         <span class="w-2 h-2 rounded-full bg-cyan-400 rec-dot"></span>
         <div class="text-[11px] flex items-center gap-1.5">
           <i data-lucide="satellite" class="w-3.5 h-3.5 text-cyan-300"></i>
-          <span id="hud-source" class="font-bold text-cyan-300">Esri Clarity</span>
+          <span id="hud-source" class="font-bold text-cyan-300">Satellite World Map</span>
           <span class="text-slate-400 font-mono" id="hud-coords">16.00°, 106.00°</span>
         </div>
       </div>
@@ -374,6 +374,7 @@
           <span class="text-[10px] text-slate-500 font-mono" id="provider-count">10</span>
         </div>
         <input id="provider-search" data-i18n-ph="srcSearchPh" placeholder="Tìm provider..." class="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-400/50 transition" />
+        <div id="pinned-provider-buttons" aria-label="Pinned world maps" class="grid grid-cols-1 gap-2"></div>
         <div id="provider-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-0.5"></div>
         <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
           <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
@@ -610,6 +611,8 @@
         warnUnsafe: '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.',
         outSize: 'Kích thước ảnh xuất:', outMp: 'Tổng số megapixel:', outTiles: 'Số mảnh tile cần tải:',
         outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'TẮT — rủi ro cao',
+        srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'Ảnh vệ tinh toàn cầu không nhãn · Esri World Imagery',
+        srcSubNaturalEarth: 'Địa hình Natural Earth · EOX · zoom gốc tối đa 8',
         srcTitle: 'Nguồn ảnh vệ tinh', srcSubEsri: 'CORS OK — xuất ổn định 100%',
         srcSubProxy: 'Proxy CORS + prefetch nhẹ', srcSubOsm: 'Bản đồ giao thông',
         srcSubFirefly: 'Esri tông điện ảnh / night style', srcSubUsgs: 'USGS ảnh vệ tinh công khai', srcSubUsgsTopo: 'USGS ảnh vệ tinh + topo / nhãn',
@@ -658,19 +661,19 @@
         toast10m: 'Bờ biển 10m nặng ~4MB, lần tải đầu có thể mất vài giây.',
         toastWorld: 'Chế độ <b>Toàn cầu</b>: độ phân giải do Scale quyết định (16× = 4096px, 32× = 8192px desktop).',
         toastRuntime: 'Lỗi runtime: {m}',
-        toastProxyDead: '<b>Cả 3 proxy CORS đều không phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri Clarity.',
+        toastProxyDead: '<b>Cả 3 proxy CORS đều không phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Satellite World Map.',
         toastTooManyFail: '<b>{f}/{tot} tiles thất bại</b> — proxy CORS đang quá tải nên đã hủy xuất. Bấm chụp lại: engine sẽ tự đo & đổi sang proxy khác.',
         toastSomeFail: '{f}/{tot} tiles tải thất bại (mạng yếu hoặc nguồn giới hạn). Ảnh có thể có vệt trống.',
         toastExportOk: '<b>Xuất ảnh thành công!</b> {w}×{h}px • {m} MB • {d}s',
         toastNoBlob: 'Không tạo được ảnh từ Canvas (thiết bị quá tải). Hãy giảm hệ số Scale.',
-        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri Clarity hoặc bật Proxy CORS.',
+        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Satellite World Map hoặc bật Proxy CORS.',
         toastMapReady: 'Bản đồ chưa sẵn sàng, thử lại sau giây lát.',
         toastFlipInfo: 'Chỉ hỗ trợ đảo chiều nhanh giữa 16:9 và 9:16.',
         toastMaskNoData: 'Không tải được dữ liệu bờ biển — ảnh xuất giữ nguyên toàn vùng.',
         toastMaskNoD3: 'Thiếu thư viện d3-geo — bỏ qua bộ lọc vùng cho lần chụp này.',
         toastDualNoD3: 'Thiếu thư viện d3-geo — không tách được 2 lớp.',
         toastDualNoData: 'Không tải được dữ liệu bờ biển.',
-        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Esri Clarity</b>.',
+        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Satellite World Map</b>.',
         toastDualDone: '<b>Đã xuất 2 lớp khớp pixel!</b> Chồng <code>-{land}.png</code> lên <code>-{ocean}.png</code> trong editor — không hở viền.',
         toastPreviewFail: 'Không hiển thị được lớp xem trước bờ biển.',
         fileLand: 'datlien', fileOcean: 'bien', fileMap: 'ban-do', fileBlank: 'ban-do-trang',
@@ -692,6 +695,8 @@
         warnUnsafe: '<b>Safety limit OFF:</b> the canvas follows Scale exactly, capped only at the browser ceiling of 16384px. Huge images may crash the tab — at your own risk.',
         outSize: 'Output size:', outMp: 'Total megapixels:', outTiles: 'Tiles to fetch:',
         outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'OFF — high risk',
+        srcPinned: 'Pinned', srcSubSatelliteWorld: 'Label-free global satellite imagery · Esri World Imagery',
+        srcSubNaturalEarth: 'Natural Earth relief · EOX · native zoom up to 8',
         srcTitle: 'Satellite imagery source', srcSubEsri: 'CORS OK — 100% stable export',
         srcSubProxy: 'CORS proxy + light prefetch', srcSubOsm: 'Street map',
         srcSubFirefly: 'Esri cinematic / firefly style', srcSubUsgs: 'Public USGS satellite imagery', srcSubUsgsTopo: 'USGS imagery + topo / labels',
@@ -740,19 +745,19 @@
         toast10m: '10m coastlines are ~4MB; first load may take a few seconds.',
         toastWorld: '<b>Global mode:</b> resolution is set by Scale (16× = 4096px, 32× = 8192px on desktop).',
         toastRuntime: 'Runtime error: {m}',
-        toastProxyDead: '<b>All 3 CORS proxies unresponsive.</b> Try again later or switch to Esri Clarity.',
+        toastProxyDead: '<b>All 3 CORS proxies unresponsive.</b> Try again later or switch to Satellite World Map.',
         toastTooManyFail: '<b>{f}/{tot} tiles failed</b> — CORS proxy overloaded, export cancelled. Capture again: the engine will re-probe and switch proxies.',
         toastSomeFail: '{f}/{tot} tiles failed (weak network or source limit). Image may have blank streaks.',
         toastExportOk: '<b>Export successful!</b> {w}×{h}px • {m} MB • {d}s',
         toastNoBlob: 'Could not encode canvas (device overloaded). Lower the Scale factor.',
-        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri Clarity or enable the CORS proxy.',
+        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Satellite World Map or enable the CORS proxy.',
         toastMapReady: 'Map not ready yet, try again in a moment.',
         toastFlipInfo: 'Quick flip only works between 16:9 and 9:16.',
         toastMaskNoData: 'Could not load coastline data — export keeps the full region.',
         toastMaskNoD3: 'Missing d3-geo library — region filter skipped for this capture.',
         toastDualNoD3: 'Missing d3-geo library — cannot split 2 layers.',
         toastDualNoData: 'Could not load coastline data.',
-        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Esri Clarity</b>.',
+        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Satellite World Map</b>.',
         toastDualDone: '<b>2 pixel-matched layers exported!</b> Stack <code>-{land}.png</code> over <code>-{ocean}.png</code> in your editor — zero seams.',
         toastPreviewFail: 'Could not render the coastline preview layer.',
         fileLand: 'land', fileOcean: 'ocean', fileMap: 'map', fileBlank: 'white-map',
@@ -856,7 +861,8 @@
     })();
 
     const TILE_SOURCES = {
-      esri: { name: "Esri Clarity", uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      esri: { name: "Satellite World Map", pinned: true, attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community', uiIcon: "satellite", noteKey: "srcSubSatelliteWorld", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      natural_earth: { name: "Natural Earth / Physical World Map", pinned: true, attribution: '&copy; <a href="https://s2maps.eu/" target="_blank" rel="noopener">EOX</a> / Natural Earth', uiIcon: "mountain", noteKey: "srcSubNaturalEarth", category: 'ref', url: "https://tiles.maps.eox.at/wmts/1.0.0/ne_terrain2/default/g/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
       esri_firefly: { name: "Esri Firefly", uiIcon: "sparkles", noteKey: "srcSubFirefly", category: 'sat', url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_topo: { name: "Esri Topo", uiIcon: "map", noteKey: "srcSubEsriTopo", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_street: { name: "Esri Street", uiIcon: "route", noteKey: "srcSubEsriStreet", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
@@ -912,26 +918,33 @@
 
     function renderProviderButtons() {
       const wrap = $('provider-buttons');
-      if (!wrap) return;
+      const pinnedWrap = $('pinned-provider-buttons');
+      if (!wrap || !pinnedWrap) return;
       const q = providerSearch.trim().toLowerCase();
       const list = Object.entries(TILE_SOURCES).filter(([, src]) => {
         if (!q) return true;
         const hay = `${src.name} ${t(src.noteKey || 'srcSubProxy')} ${src.category || ''}`.toLowerCase();
         return hay.includes(q);
       });
-      wrap.innerHTML = list.map(([key, src]) => `
-        <button data-source="${key}" class="src-btn ${key === currentSourceKey ? 'active bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'} p-2 rounded-xl border text-left text-xs font-semibold transition">
+      const renderButton = ([key, src]) => `
+        <button type="button" data-source="${key}" aria-pressed="${key === currentSourceKey}" class="src-btn ${key === currentSourceKey ? 'active bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'} p-2 rounded-xl border text-left text-xs font-semibold transition">
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="truncate">${src.name}</span></div>
-            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.category || 'map'}</span>
+            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="${src.pinned ? '' : 'truncate'}">${src.name}</span></div>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.pinned ? `<span class="inline-flex items-center gap-1"><i data-lucide="pin" class="w-3 h-3"></i>${t('srcPinned')}</span>` : (src.category || 'map')}</span>
           </div>
           <div class="text-[10px] opacity-70 font-normal mt-0.5" data-i18n="${src.noteKey || 'srcSubProxy'}">${t(src.noteKey || 'srcSubProxy')}</div>
         </button>
-      `).join('') || `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`;
+      `;
+      const pinned = list.filter(([, src]) => src.pinned);
+      const others = list.filter(([, src]) => !src.pinned);
+      pinnedWrap.innerHTML = pinned.map(renderButton).join('');
+      pinnedWrap.style.display = pinned.length ? '' : 'none';
+      wrap.innerHTML = others.map(renderButton).join('') || (list.length ? '' : `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`);
       $('provider-count').textContent = providerCountLabel(list.length);
       document.querySelectorAll('.src-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           markActive([...document.querySelectorAll('.src-btn')], 'data-source', btn.getAttribute('data-source'));
+          document.querySelectorAll('.src-btn').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
           currentSourceKey = btn.getAttribute('data-source');
           applyTileLayer(currentSourceKey);
           warmupConnection(currentSourceKey);
@@ -953,7 +966,7 @@
         maxZoom: 22,                    // Leaflet cho phép zoom tới 22
         maxNativeZoom: src.maxZoom,     // nhưng tile gốc tối đa theo nguồn — vượt sẽ upscale
         subdomains: src.subdomains || [],
-        attribution: src.name + " | Satellite Studio",
+        attribution: (src.attribution || src.name) + " | Satellite Studio",
         time: src.time || ''
       };
 
@@ -970,7 +983,9 @@
 
       currentTileLayer.addTo(map);
       $('hud-source').textContent = src.name;
-      $('provider-count').textContent = providerCountLabel();
+      $('provider-count').textContent = providerCountLabel(Object.values(TILE_SOURCES).filter(src =>
+        `${src.name} ${t(src.noteKey || 'srcSubProxy')} ${src.category || ''}`.toLowerCase().includes(providerSearch.trim().toLowerCase())
+      ).length);
     }
 
     /* ============================================================
