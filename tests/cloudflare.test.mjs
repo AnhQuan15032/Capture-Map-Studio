@@ -16,3 +16,9 @@ test('Wrangler commands rely on its automatic build without recursively invoking
   assert.equal(pkg.scripts.deploy, 'wrangler deploy');
   assert.equal(pkg.scripts.build, 'node scripts/build.mjs');
 });
+
+test('Cloudflare routes API requests through the tile Worker and binds static assets', () => {
+  assert.equal(config.main, 'src/worker.js');
+  assert.equal(config.assets.binding, 'ASSETS');
+  assert.deepEqual(config.assets.run_worker_first, ['/api/*']);
+});

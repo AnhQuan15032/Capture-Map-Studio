@@ -1,6 +1,6 @@
 # Capture Map Studio
 
-Static Leaflet map capture studio with Vietnamese and English UI.
+Leaflet map capture studio with Vietnamese and English UI and a restricted Cloudflare tile relay for origin-clean exports.
 
 ## Pinned world maps
 
@@ -43,7 +43,7 @@ Connect this repository in **Cloudflare → Workers & Pages → Create → Impor
 | Preview deploy command | `npx wrangler preview` |
 | Node.js version | `22` or newer |
 
-`wrangler.jsonc` configures a static-assets-only Worker named `capture-map-studio`, publishing `dist/`. The build copies only `index.html`; development files and Git metadata are not published. No Worker code or application secrets are required.
+`wrangler.jsonc` configures a Worker named `capture-map-studio`, publishing `dist/` as its `ASSETS` binding. `src/worker.js` handles `/api/tiles` before static assets. The static build copies only `index.html`; development files and Git metadata are not published. No application secrets are required.
 
 Wrangler also runs `npm run build` automatically via the `build.command` configuration, so deployments still generate `dist/` if the dashboard build command is left empty. If you set the dashboard build command too, the small static copy runs twice; this is harmless.
 
@@ -57,6 +57,17 @@ Use the updated `wrangler.jsonc` from this branch and retry the build. In Cloudf
 
 ### Cloudflare Pages alternative
 
-The same output can be deployed through Pages using build command `npm run build` and output directory `dist` (no deploy command). `wrangler.jsonc` targets Workers, not the Pages CLI.
+The static output can be deployed through Pages using build command `npm run build` and output directory `dist` (no deploy command), but this does **not** deploy the tile relay. On static-only hosting, export depends on provider CORS support or an available public CORS proxy. Use the configured Workers deployment for the first-party relay. `wrangler.jsonc` targets Workers, not the Pages CLI.
 
 The configuration is deployment-ready; adding it to the repository does **not** deploy to a Cloudflare account automatically.
+
+
+## Canvas/CORS export fix
+
+A provider flag is only a hint: even NASA or EOX may return an image without usable browser CORS headers. The old loader then loaded a non-CORS `<img>`, tainting the export canvas even though the preview worked.
+
+The export loader now accepts only CORS-readable fetched images or anonymous-CORS images. If a direct load fails and the proxy toggle is enabled (the default), **every provider** can retry through the same-origin `/api/tiles?url=…` relay. Public CORS services remain fallbacks for static-only hosting and custom providers not covered by the relay. Export and prefetch use the same safe loader, and cached image sources are no longer cleared after drawing. Failed transports produce missing-tile errors, never unsafe images drawn into a download canvas.
+
+The relay allows only built-in tile hosts and tile-shaped paths; custom URLs cannot make it fetch arbitrary servers. It permits HTTPS GET only, rejects redirects and non-raster responses, forwards no user credentials, enforces a 12-second upstream timeout and a 5 MiB image limit, and caches successful images. Provider failures are not converted into successful image responses. This is a CORS transport fix, not a bypass for provider authentication, availability, or usage terms.
+
+Deploy the **Worker**, not just `dist/index.html`, and leave the proxy toggle enabled when a provider blocks direct CORS loads. A browser preview by itself does not establish that image export is allowed.

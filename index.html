@@ -662,7 +662,7 @@
         toast10m: 'Bờ biển 10m nặng ~4MB, lần tải đầu có thể mất vài giây.',
         toastWorld: 'Chế độ <b>Toàn cầu</b>: độ phân giải do Scale quyết định (16× = 4096px, 32× = 8192px desktop).',
         toastRuntime: 'Lỗi runtime: {m}',
-        toastProxyDead: '<b>Cả 3 proxy CORS đều không phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri World Imagery.',
+        toastProxyDead: '<b>Không có proxy tile nào phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri World Imagery.',
         toastTooManyFail: '<b>{f}/{tot} tiles thất bại</b> — proxy CORS đang quá tải nên đã hủy xuất. Bấm chụp lại: engine sẽ tự đo & đổi sang proxy khác.',
         toastSomeFail: '{f}/{tot} tiles tải thất bại (mạng yếu hoặc nguồn giới hạn). Ảnh có thể có vệt trống.',
         toastExportOk: '<b>Xuất ảnh thành công!</b> {w}×{h}px • {m} MB • {d}s',
@@ -746,7 +746,7 @@
         toast10m: '10m coastlines are ~4MB; first load may take a few seconds.',
         toastWorld: '<b>Global mode:</b> resolution is set by Scale (16× = 4096px, 32× = 8192px on desktop).',
         toastRuntime: 'Runtime error: {m}',
-        toastProxyDead: '<b>All 3 CORS proxies unresponsive.</b> Try again later or switch to Esri World Imagery.',
+        toastProxyDead: '<b>No tile relay is responding.</b> Try again later or switch to Esri World Imagery.',
         toastTooManyFail: '<b>{f}/{tot} tiles failed</b> — CORS proxy overloaded, export cancelled. Capture again: the engine will re-probe and switch proxies.',
         toastSomeFail: '{f}/{tot} tiles failed (weak network or source limit). Image may have blank streaks.',
         toastExportOk: '<b>Export successful!</b> {w}×{h}px • {m} MB • {d}s',
@@ -879,10 +879,10 @@
       nasa_viirs: { name: "NASA VIIRS True Color", uiIcon: "orbit", noteKey: "srcSubNasaTerra", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", time: gibsRecentDate, maxZoom: 9, corsSafe: true },
       nasa_night: { name: "NASA City Lights", uiIcon: "moon-star", noteKey: "srcSubNasaNight", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default//GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
       bing: { name: "Bing Satellite", uiIcon: "globe", noteKey: "srcSubProxy", category: 'sat', url: "https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=14364&n=z", maxZoom: 22, subdomains: ["0", "1", "2", "3"], scheme: "bing-quadkey", corsSafe: false },
-      google: { name: "Google Hybrid", uiIcon: "satellite", noteKey: "srcSubProxy", category: 'hybrid', url: "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_sat: { name: "Google Satellite", uiIcon: "image", noteKey: "srcSubGoogleSat", category: 'sat', url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_road: { name: "Google Road", uiIcon: "map", noteKey: "srcSubGoogleRoad", category: 'ref', url: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_terrain: { name: "Google Terrain", uiIcon: "mountain", noteKey: "srcSubGoogleTerrain", category: 'ref', url: "https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google: { name: "Google Hybrid", uiIcon: "satellite", noteKey: "srcSubProxy", category: 'hybrid', url: "https://mt{s}.google.com/vt?lyrs=y&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_sat: { name: "Google Satellite", uiIcon: "image", noteKey: "srcSubGoogleSat", category: 'sat', url: "https://mt{s}.google.com/vt?lyrs=s&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_road: { name: "Google Road", uiIcon: "map", noteKey: "srcSubGoogleRoad", category: 'ref', url: "https://mt{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_terrain: { name: "Google Terrain", uiIcon: "mountain", noteKey: "srcSubGoogleTerrain", category: 'ref', url: "https://mt{s}.google.com/vt?lyrs=p&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
       carto_dark: { name: "CARTO Dark", uiIcon: "moon", noteKey: "srcSubCartoDark", category: 'ref', url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", maxZoom: 20, corsSafe: true },
       carto_light: { name: "CARTO Light", uiIcon: "sun", noteKey: "srcSubCartoLight", category: 'ref', url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", maxZoom: 20, corsSafe: true },
       opentopo: { name: "OpenTopoMap", uiIcon: "map-pinned", noteKey: "srcSubOpenTopo", category: 'ref', url: "https://tile.opentopomap.org/{z}/{x}/{y}.png", maxZoom: 17, corsSafe: true },
@@ -1745,9 +1745,10 @@
       }
     }
 
-    // Thứ tự mặc định: weserv (CDN ảnh, thường nhanh nhất) trước.
-    // ensureFastProxy() sẽ ĐO ĐỘ TRỄ THẬT và tự xếp lại thứ tự.
+    // Prefer our restricted same-origin Cloudflare relay. Public proxies are
+    // fallbacks for static-only hosting or custom providers outside its allowlist.
     const PROXY_BUILDERS = [
+      (u) => `/api/tiles?url=${encodeURIComponent(u)}`,
       (u) => `https://images.weserv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//, ''))}`,
       (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
       (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
@@ -1762,16 +1763,24 @@
       return idxs;
     }
 
-    /** Đo tốc độ thật của 3 proxy bằng 1 tile mẫu (song song) → chọn cái nhanh nhất */
+    /** Prefer the first-party relay; probe public fallbacks only if it is unavailable. */
     async function ensureFastProxy(force = false) {
       if (!force && proxyProbePromise) return proxyProbePromise;
       const p = (async () => {
         try {
           const sample = buildTileUrl(currentSourceKey, 2, 2, 1);
-          const results = await Promise.all(PROXY_BUILDERS.map(async (mk, i) => {
+          try {
+            const entry = await fetchTileEntry(PROXY_BUILDERS[0](sample), 6000);
+            entry.close();
+            activeProxyIdx = 0;
+            return true;
+          } catch (_) { /* Static-only hosting or a custom provider: try public relays. */ }
+          const results = await Promise.all(PROXY_BUILDERS.slice(1).map(async (mk, offset) => {
+            const i = offset + 1;
             const t0 = performance.now();
             try {
-              await fetchTileEntry(mk(sample), 7000);
+              const entry = await fetchTileEntry(mk(sample), 7000);
+              entry.close();
               return { i, ms: performance.now() - t0, ok: true };
             } catch (_) {
               return { i, ms: Infinity, ok: false };
@@ -1799,7 +1808,7 @@
           mode: 'cors', credentials: 'omit', cache: 'force-cache',
           referrerPolicy: 'no-referrer', signal: ctl.signal,
         });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if (!res.ok || res.type === 'opaque' || res.type === 'opaqueredirect') throw new Error('Unreadable tile: HTTP ' + res.status);
         const blob = await res.blob();
         if (!blob.type.startsWith('image')) throw new Error('not-image');
         if ('createImageBitmap' in window) {
@@ -1815,38 +1824,41 @@
       }
     }
 
-    /** Loader tốc độ cao: cache RAM → fetch/bitmap (kèm proxy) → <img> CORS → <img> thường */
+    /** Export tiles must be origin-clean. corsSafe is a hint, not a guarantee. */
     async function loadTileFast(url, corsSafe) {
       const hit = cacheTouch(url);
       if (hit) return { data: hit.data, tainted: false, cached: true };
 
-      if (corsSafe) {
-        try {
-          const entry = await fetchTileEntry(url, 12000);
-          cacheSet(url, entry);
-          return { data: entry.data, tainted: false, cached: false };
-        } catch (_) { /* rơi xuống fallback <img> bên dưới */ }
-      } else if (useProxy) {
-        // Proxy nhanh nhất (đã đo) đi trước; backup timeout NGẮN để fail-fast
-        const order = proxyOrder();
-        for (let k = 0; k < order.length; k++) {
-          try {
-            const entry = await fetchTileEntry(PROXY_BUILDERS[order[k]](url), k === 0 ? 10000 : 5000);
-            cacheSet(url, entry);
-            return { data: entry.data, tainted: false, cached: false };
-          } catch (_) { /* thử proxy kế tiếp */ }
-        }
-      }
+      const direct = async () => {
+        try { return await fetchTileEntry(url, 12000); } catch (_) {}
+        // A CORS image is safe too. Never fall back to a non-CORS remote image.
+        const img = await loadImg(url, true, 6000);
+        return img ? { data: img, close() {} } : null;
+      };
+      const remember = (entry) => {
+        cacheSet(url, entry);
+        return { data: entry.data, tainted: false, cached: false };
+      };
 
       if (corsSafe) {
-        const img = await loadImg(url, true);
-        if (img) {
-          cacheSet(url, { data: img, close() {} });
-          return { data: img, tainted: false, cached: false };
+        const entry = await direct();
+        if (entry) return remember(entry);
+      }
+      // Even a supposedly CORS-safe provider may change its response headers.
+      // Relay after a failed direct request for ALL providers, not only corsSafe=false.
+      if (useProxy) {
+        for (const [k, idx] of proxyOrder().entries()) {
+          try {
+            const entry = await fetchTileEntry(PROXY_BUILDERS[idx](url), k === 0 ? 10000 : 5000);
+            return remember(entry);
+          } catch (_) { /* Try the next readable transport. */ }
         }
       }
-      const taintedImg = await loadImg(url, false);
-      if (taintedImg) return { data: taintedImg, tainted: true, cached: false };
+      if (!corsSafe) {
+        const entry = await direct();
+        if (entry) return remember(entry);
+      }
+      // Missing tiles are reported by capture; unsafe images must never reach a canvas.
       return { data: null };
     }
 
@@ -2056,8 +2068,8 @@
         },
         (done, total, item, res) => {
           const { data, tainted, cached } = res || {};
-          if (data) {
-            if (tainted) taintedUsed = true;
+          if (tainted) taintedUsed = true;
+          if (data && !tainted) {
             if (cached) cachedHits++;
             proxyFailStreak = 0;
             // Chụp BIỂN: bỏ qua tile trắng đồng nhất (vùng cực không có dữ liệu)
@@ -2069,7 +2081,7 @@
               const dh = TILE_SIZE * scaleY + 0.6;
               ctx.drawImage(data, dx, dy, dw, dh);
             }
-            if (!cached && data.tagName) data.src = ''; // giải phóng <img> rồi, bản cache giữ nguyên
+            // Cached images stay decoded until their LRU entry is evicted.
           } else {
             failedCount++;
             if (viaProxy) {
@@ -2187,8 +2199,9 @@
           mobileText.textContent = captureLabelText();
         }, mimeType, quality);
       } catch (err) {
-        showToast(t('toastCanvasBlock'), 'error', 7000);
-        finish(t('finCors'));
+        const securityError = err.name === 'SecurityError';
+        showToast(t(securityError ? 'toastCanvasBlock' : 'toastNoBlob'), 'error', 7000);
+        finish(t(securityError ? 'finCors' : 'finMem'));
       }
     }
 
@@ -2338,13 +2351,13 @@
         async (task) => await loadTileFast(task.url, src.corsSafe),
         (done, total, item, res) => {
           const { data, tainted } = res || {};
-          if (data) {
+          if (data && !tainted) {
             const dx = (item.tx * TILE_SIZE - minPixX) * scaleX;
             const dy = (item.ty * TILE_SIZE - minPixY) * scaleY;
             const dw = TILE_SIZE * scaleX + 0.6, dh = TILE_SIZE * scaleY + 0.6;
             ctxL.drawImage(data, dx, dy, dw, dh);               // lớp đất: giữ tất cả
             if (!tainted && !isUniformBlank(data)) ctxO.drawImage(data, dx, dy, dw, dh); // lớp biển: bỏ vùng trống
-            if (!tainted && data.tagName) data.src = '';
+            // Do not clear the src of an image retained by tileCache.
           } else failed++;
           const pct = Math.round((done / total) * 95);
           progressBar.style.width = `${pct}%`; statusPct.textContent = `${pct}%`;
@@ -2458,18 +2471,9 @@
       prefetchTimer = setTimeout(() => prefetchViewfinder(tk), delay);
     }
 
-    /** Prefetch "nhẹ" cho nguồn chặn CORS: chỉ dùng 1 proxy nhanh nhất,
-     *  ít luồng hơn để không spam dịch vụ proxy công cộng. */
+    /** Prefetch and capture share the same origin-clean loading and cache rules. */
     async function loadTileLight(url, corsSafe) {
-      if (corsSafe) return loadTileFast(url, true);
-      try {
-        // Dùng đúng proxy nhanh nhất đã đo (mặc định weserv)
-        const entry = await fetchTileEntry(PROXY_BUILDERS[activeProxyIdx](url), 12000);
-        cacheSet(url, entry);
-        return { data: entry.data, tainted: false, cached: false };
-      } catch (_) {
-        return { data: null }; // im lặng — lúc chụp sẽ chạy fallback đầy đủ
-      }
+      return loadTileFast(url, corsSafe);
     }
 
     async function prefetchViewfinder(token) {
