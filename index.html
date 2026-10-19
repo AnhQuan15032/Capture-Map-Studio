@@ -24,6 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/d3-geo@3"></script>
 
   <!-- Preconnect: mở sẵn kết nối tới máy chủ tile để chụp nhanh hơn -->
+  <link rel="preconnect" href="https://tiles.maps.eox.at" crossorigin />
   <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
   <link rel="preconnect" href="https://gibs.earthdata.nasa.gov" crossorigin />
   <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin />
@@ -194,7 +195,7 @@
         <span class="w-2 h-2 rounded-full bg-cyan-400 rec-dot"></span>
         <div class="text-[11px] flex items-center gap-1.5">
           <i data-lucide="satellite" class="w-3.5 h-3.5 text-cyan-300"></i>
-          <span id="hud-source" class="font-bold text-cyan-300">Esri Clarity</span>
+          <span id="hud-source" class="font-bold text-cyan-300">Satellite World Map</span>
           <span class="text-slate-400 font-mono" id="hud-coords">16.00°, 106.00°</span>
         </div>
       </div>
@@ -374,6 +375,7 @@
           <span class="text-[10px] text-slate-500 font-mono" id="provider-count">10</span>
         </div>
         <input id="provider-search" data-i18n-ph="srcSearchPh" placeholder="Tìm provider..." class="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-400/50 transition" />
+        <div id="pinned-provider-buttons" aria-label="Pinned world maps" class="grid grid-cols-1 gap-2"></div>
         <div id="provider-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-0.5"></div>
         <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
           <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
@@ -585,7 +587,7 @@
     let currentRatio = '16:9';
     let currentScale = 2;
     let currentFormat = 'jpeg';
-    let currentSourceKey = 'esri';
+    let currentSourceKey = 'satellite_world';
     let useProxy = true;
     let isCapturing = false;
 
@@ -610,6 +612,8 @@
         warnUnsafe: '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.',
         outSize: 'Kích thước ảnh xuất:', outMp: 'Tổng số megapixel:', outTiles: 'Số mảnh tile cần tải:',
         outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'TẮT — rủi ro cao',
+        srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'NASA Blue Marble · địa hình & đáy biển · zoom gốc 8',
+        srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · biển xanh · mức tile tối đa 8',
         srcTitle: 'Nguồn ảnh vệ tinh', srcSubEsri: 'CORS OK — xuất ổn định 100%',
         srcSubProxy: 'Proxy CORS + prefetch nhẹ', srcSubOsm: 'Bản đồ giao thông',
         srcSubFirefly: 'Esri tông điện ảnh / night style', srcSubUsgs: 'USGS ảnh vệ tinh công khai', srcSubUsgsTopo: 'USGS ảnh vệ tinh + topo / nhãn',
@@ -648,7 +652,7 @@
         stDualInit: 'Xuất 2 lớp: khởi tạo...', stDualTiles: '2 lớp: {d}/{tot} tiles...', stDualSplit: 'Đang tách Biển / Đất liền...',
         stDone: 'Xong trong {d}s — {m} MB',
         stMaskLoad: 'Đang tải bờ biển...', stMaskErr: 'Lỗi tải dữ liệu',
-        finCors: 'Lỗi CORS', finMem: 'Lỗi bộ nhớ', finProxy: 'Proxy quá tải — bấm chụp lại',
+        finCors: 'Lỗi CORS', finMem: 'Lỗi bộ nhớ', finExport: 'Lỗi xuất ảnh', finProxy: 'Proxy quá tải — bấm chụp lại',
         toastProxyWarn: 'Nguồn <b>{name}</b> chặn CORS. Hãy bật "Proxy CORS" để xuất được ảnh.',
         toastTurboOn: '<b>Turbo bật:</b> tối đa ~320 tiles/lần chụp, nhanh hơn khoảng 4 lần.',
         toastTurboOff: '<b>Turbo tắt:</b> chế độ Max Detail — nhiều tile hơn, sắc nét tối đa.',
@@ -658,19 +662,20 @@
         toast10m: 'Bờ biển 10m nặng ~4MB, lần tải đầu có thể mất vài giây.',
         toastWorld: 'Chế độ <b>Toàn cầu</b>: độ phân giải do Scale quyết định (16× = 4096px, 32× = 8192px desktop).',
         toastRuntime: 'Lỗi runtime: {m}',
-        toastProxyDead: '<b>Cả 3 proxy CORS đều không phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri Clarity.',
+        toastProxyDead: '<b>Không có proxy tile nào phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri World Imagery.',
         toastTooManyFail: '<b>{f}/{tot} tiles thất bại</b> — proxy CORS đang quá tải nên đã hủy xuất. Bấm chụp lại: engine sẽ tự đo & đổi sang proxy khác.',
         toastSomeFail: '{f}/{tot} tiles tải thất bại (mạng yếu hoặc nguồn giới hạn). Ảnh có thể có vệt trống.',
         toastExportOk: '<b>Xuất ảnh thành công!</b> {w}×{h}px • {m} MB • {d}s',
-        toastNoBlob: 'Không tạo được ảnh từ Canvas (thiết bị quá tải). Hãy giảm hệ số Scale.',
-        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri Clarity hoặc bật Proxy CORS.',
+        toastNoBlob: 'Bộ mã hóa Canvas không trả về ảnh. Hãy thử định dạng PNG hoặc chụp lại.',
+        toastExportError: 'Không xuất được ảnh: {m}',
+        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri World Imagery hoặc bật Proxy CORS.',
         toastMapReady: 'Bản đồ chưa sẵn sàng, thử lại sau giây lát.',
         toastFlipInfo: 'Chỉ hỗ trợ đảo chiều nhanh giữa 16:9 và 9:16.',
         toastMaskNoData: 'Không tải được dữ liệu bờ biển — ảnh xuất giữ nguyên toàn vùng.',
         toastMaskNoD3: 'Thiếu thư viện d3-geo — bỏ qua bộ lọc vùng cho lần chụp này.',
         toastDualNoD3: 'Thiếu thư viện d3-geo — không tách được 2 lớp.',
         toastDualNoData: 'Không tải được dữ liệu bờ biển.',
-        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Esri Clarity</b>.',
+        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Esri World Imagery</b>.',
         toastDualDone: '<b>Đã xuất 2 lớp khớp pixel!</b> Chồng <code>-{land}.png</code> lên <code>-{ocean}.png</code> trong editor — không hở viền.',
         toastPreviewFail: 'Không hiển thị được lớp xem trước bờ biển.',
         fileLand: 'datlien', fileOcean: 'bien', fileMap: 'ban-do', fileBlank: 'ban-do-trang',
@@ -692,6 +697,8 @@
         warnUnsafe: '<b>Safety limit OFF:</b> the canvas follows Scale exactly, capped only at the browser ceiling of 16384px. Huge images may crash the tab — at your own risk.',
         outSize: 'Output size:', outMp: 'Total megapixels:', outTiles: 'Tiles to fetch:',
         outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'OFF — high risk',
+        srcPinned: 'Pinned', srcSubSatelliteWorld: 'NASA Blue Marble · shaded relief & bathymetry · native zoom 8',
+        srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · blue oceans · tile zoom capped at 8',
         srcTitle: 'Satellite imagery source', srcSubEsri: 'CORS OK — 100% stable export',
         srcSubProxy: 'CORS proxy + light prefetch', srcSubOsm: 'Street map',
         srcSubFirefly: 'Esri cinematic / firefly style', srcSubUsgs: 'Public USGS satellite imagery', srcSubUsgsTopo: 'USGS imagery + topo / labels',
@@ -730,7 +737,7 @@
         stDualInit: 'Dual layers: init...', stDualTiles: '2 layers: {d}/{tot} tiles...', stDualSplit: 'Splitting Ocean / Land...',
         stDone: 'Done in {d}s — {m} MB',
         stMaskLoad: 'Loading coastlines...', stMaskErr: 'Data load error',
-        finCors: 'CORS error', finMem: 'Memory error', finProxy: 'Proxy overloaded — tap capture again',
+        finCors: 'CORS error', finMem: 'Memory error', finExport: 'Export error', finProxy: 'Proxy overloaded — tap capture again',
         toastProxyWarn: 'Source <b>{name}</b> blocks CORS. Enable "CORS proxy" to export images.',
         toastTurboOn: '<b>Turbo on:</b> max ~320 tiles per capture, roughly 4× faster.',
         toastTurboOff: '<b>Turbo off:</b> Max Detail mode — more tiles, maximum sharpness.',
@@ -740,19 +747,20 @@
         toast10m: '10m coastlines are ~4MB; first load may take a few seconds.',
         toastWorld: '<b>Global mode:</b> resolution is set by Scale (16× = 4096px, 32× = 8192px on desktop).',
         toastRuntime: 'Runtime error: {m}',
-        toastProxyDead: '<b>All 3 CORS proxies unresponsive.</b> Try again later or switch to Esri Clarity.',
+        toastProxyDead: '<b>No tile relay is responding.</b> Try again later or switch to Esri World Imagery.',
         toastTooManyFail: '<b>{f}/{tot} tiles failed</b> — CORS proxy overloaded, export cancelled. Capture again: the engine will re-probe and switch proxies.',
         toastSomeFail: '{f}/{tot} tiles failed (weak network or source limit). Image may have blank streaks.',
         toastExportOk: '<b>Export successful!</b> {w}×{h}px • {m} MB • {d}s',
-        toastNoBlob: 'Could not encode canvas (device overloaded). Lower the Scale factor.',
-        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri Clarity or enable the CORS proxy.',
+        toastNoBlob: 'The canvas encoder returned no image. Try PNG or capture again.',
+        toastExportError: 'Image export failed: {m}',
+        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri World Imagery or enable the CORS proxy.',
         toastMapReady: 'Map not ready yet, try again in a moment.',
         toastFlipInfo: 'Quick flip only works between 16:9 and 9:16.',
         toastMaskNoData: 'Could not load coastline data — export keeps the full region.',
         toastMaskNoD3: 'Missing d3-geo library — region filter skipped for this capture.',
         toastDualNoD3: 'Missing d3-geo library — cannot split 2 layers.',
         toastDualNoData: 'Could not load coastline data.',
-        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Esri Clarity</b>.',
+        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Esri World Imagery</b>.',
         toastDualDone: '<b>2 pixel-matched layers exported!</b> Stack <code>-{land}.png</code> over <code>-{ocean}.png</code> in your editor — zero seams.',
         toastPreviewFail: 'Could not render the coastline preview layer.',
         fileLand: 'land', fileOcean: 'ocean', fileMap: 'map', fileBlank: 'white-map',
@@ -856,7 +864,11 @@
     })();
 
     const TILE_SOURCES = {
-      esri: { name: "Esri Clarity", uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      // Use the ocean-inclusive variants: land-only relief leaves white oceans.
+      satellite_world: { name: "Satellite World Map", pinned: true, attribution: '<a href="https://earthobservatory.nasa.gov/features/BlueMarble" target="_blank" rel="noopener">NASA Blue Marble</a>, imagery via <a href="https://www.earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs" target="_blank" rel="noopener">NASA GIBS</a>', uiIcon: "satellite", noteKey: "srcSubSatelliteWorld", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//EPSG3857_500m/{z}/{y}/{x}.jpeg", maxZoom: 8, corsSafe: true },
+      // Keep this world-relief preset at z8; EOX can render more local detail beyond it.
+      natural_earth: { name: "Natural Earth / Physical World Map", pinned: true, attribution: '<a href="https://maps.eox.at/" target="_blank" rel="noopener">Terrain</a> { Data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors and <a href="https://maps.eox.at/#data" target="_blank" rel="noopener">others (Natural Earth)</a>, Rendering &copy; <a href="https://eox.at/" target="_blank" rel="noopener">EOX</a> }', uiIcon: "mountain", noteKey: "srcSubNaturalEarth", category: 'ref', url: "https://tiles.maps.eox.at/wmts/1.0.0/terrain_3857/default/g/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
+      esri: { name: "Esri World Imagery", attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community', uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_firefly: { name: "Esri Firefly", uiIcon: "sparkles", noteKey: "srcSubFirefly", category: 'sat', url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_topo: { name: "Esri Topo", uiIcon: "map", noteKey: "srcSubEsriTopo", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_street: { name: "Esri Street", uiIcon: "route", noteKey: "srcSubEsriStreet", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
@@ -865,14 +877,14 @@
       esri_light: { name: "Esri Light Gray", uiIcon: "sun-medium", noteKey: "srcSubEsriLight", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", maxZoom: 16, corsSafe: true },
       usgs: { name: "USGS Imagery", uiIcon: "mountain-snow", noteKey: "srcSubUsgs", category: 'sat', url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       usgs_topo: { name: "USGS Imagery Topo", uiIcon: "map", noteKey: "srcSubUsgsTopo", category: 'hybrid', url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
-      nasa_blue: { name: "NASA Blue Marble", uiIcon: "globe-2", noteKey: "srcSubNasaBlue", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
+      nasa_blue: { name: "NASA Blue Marble", uiIcon: "globe-2", noteKey: "srcSubNasaBlue", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//EPSG3857_500m/{z}/{y}/{x}.jpeg", maxZoom: 8, corsSafe: true },
       nasa_viirs: { name: "NASA VIIRS True Color", uiIcon: "orbit", noteKey: "srcSubNasaTerra", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", time: gibsRecentDate, maxZoom: 9, corsSafe: true },
       nasa_night: { name: "NASA City Lights", uiIcon: "moon-star", noteKey: "srcSubNasaNight", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default//GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
       bing: { name: "Bing Satellite", uiIcon: "globe", noteKey: "srcSubProxy", category: 'sat', url: "https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=14364&n=z", maxZoom: 22, subdomains: ["0", "1", "2", "3"], scheme: "bing-quadkey", corsSafe: false },
-      google: { name: "Google Hybrid", uiIcon: "satellite", noteKey: "srcSubProxy", category: 'hybrid', url: "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_sat: { name: "Google Satellite", uiIcon: "image", noteKey: "srcSubGoogleSat", category: 'sat', url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_road: { name: "Google Road", uiIcon: "map", noteKey: "srcSubGoogleRoad", category: 'ref', url: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_terrain: { name: "Google Terrain", uiIcon: "mountain", noteKey: "srcSubGoogleTerrain", category: 'ref', url: "https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google: { name: "Google Hybrid", uiIcon: "satellite", noteKey: "srcSubProxy", category: 'hybrid', url: "https://mt{s}.google.com/vt?lyrs=y&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_sat: { name: "Google Satellite", uiIcon: "image", noteKey: "srcSubGoogleSat", category: 'sat', url: "https://mt{s}.google.com/vt?lyrs=s&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_road: { name: "Google Road", uiIcon: "map", noteKey: "srcSubGoogleRoad", category: 'ref', url: "https://mt{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_terrain: { name: "Google Terrain", uiIcon: "mountain", noteKey: "srcSubGoogleTerrain", category: 'ref', url: "https://mt{s}.google.com/vt?lyrs=p&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
       carto_dark: { name: "CARTO Dark", uiIcon: "moon", noteKey: "srcSubCartoDark", category: 'ref', url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", maxZoom: 20, corsSafe: true },
       carto_light: { name: "CARTO Light", uiIcon: "sun", noteKey: "srcSubCartoLight", category: 'ref', url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", maxZoom: 20, corsSafe: true },
       opentopo: { name: "OpenTopoMap", uiIcon: "map-pinned", noteKey: "srcSubOpenTopo", category: 'ref', url: "https://tile.opentopomap.org/{z}/{x}/{y}.png", maxZoom: 17, corsSafe: true },
@@ -912,26 +924,33 @@
 
     function renderProviderButtons() {
       const wrap = $('provider-buttons');
-      if (!wrap) return;
+      const pinnedWrap = $('pinned-provider-buttons');
+      if (!wrap || !pinnedWrap) return;
       const q = providerSearch.trim().toLowerCase();
       const list = Object.entries(TILE_SOURCES).filter(([, src]) => {
         if (!q) return true;
         const hay = `${src.name} ${t(src.noteKey || 'srcSubProxy')} ${src.category || ''}`.toLowerCase();
         return hay.includes(q);
       });
-      wrap.innerHTML = list.map(([key, src]) => `
-        <button data-source="${key}" class="src-btn ${key === currentSourceKey ? 'active bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'} p-2 rounded-xl border text-left text-xs font-semibold transition">
+      const renderButton = ([key, src]) => `
+        <button type="button" data-source="${key}" aria-pressed="${key === currentSourceKey}" class="src-btn ${key === currentSourceKey ? 'active bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'} p-2 rounded-xl border text-left text-xs font-semibold transition">
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="truncate">${src.name}</span></div>
-            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.category || 'map'}</span>
+            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="${src.pinned ? '' : 'truncate'}">${src.name}</span></div>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.pinned ? `<span class="inline-flex items-center gap-1"><i data-lucide="pin" class="w-3 h-3"></i>${t('srcPinned')}</span>` : (src.category || 'map')}</span>
           </div>
           <div class="text-[10px] opacity-70 font-normal mt-0.5" data-i18n="${src.noteKey || 'srcSubProxy'}">${t(src.noteKey || 'srcSubProxy')}</div>
         </button>
-      `).join('') || `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`;
+      `;
+      const pinned = list.filter(([, src]) => src.pinned);
+      const others = list.filter(([, src]) => !src.pinned);
+      pinnedWrap.innerHTML = pinned.map(renderButton).join('');
+      pinnedWrap.style.display = pinned.length ? '' : 'none';
+      wrap.innerHTML = others.map(renderButton).join('') || (list.length ? '' : `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`);
       $('provider-count').textContent = providerCountLabel(list.length);
       document.querySelectorAll('.src-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           markActive([...document.querySelectorAll('.src-btn')], 'data-source', btn.getAttribute('data-source'));
+          document.querySelectorAll('.src-btn').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
           currentSourceKey = btn.getAttribute('data-source');
           applyTileLayer(currentSourceKey);
           warmupConnection(currentSourceKey);
@@ -953,7 +972,7 @@
         maxZoom: 22,                    // Leaflet cho phép zoom tới 22
         maxNativeZoom: src.maxZoom,     // nhưng tile gốc tối đa theo nguồn — vượt sẽ upscale
         subdomains: src.subdomains || [],
-        attribution: src.name + " | Satellite Studio",
+        attribution: (src.attribution || src.name) + " | Satellite Studio",
         time: src.time || ''
       };
 
@@ -970,7 +989,9 @@
 
       currentTileLayer.addTo(map);
       $('hud-source').textContent = src.name;
-      $('provider-count').textContent = providerCountLabel();
+      $('provider-count').textContent = providerCountLabel(Object.values(TILE_SOURCES).filter(src =>
+        `${src.name} ${t(src.noteKey || 'srcSubProxy')} ${src.category || ''}`.toLowerCase().includes(providerSearch.trim().toLowerCase())
+      ).length);
     }
 
     /* ============================================================
@@ -1726,9 +1747,10 @@
       }
     }
 
-    // Thứ tự mặc định: weserv (CDN ảnh, thường nhanh nhất) trước.
-    // ensureFastProxy() sẽ ĐO ĐỘ TRỄ THẬT và tự xếp lại thứ tự.
+    // Prefer our restricted same-origin Cloudflare relay. Public proxies are
+    // fallbacks for static-only hosting or custom providers outside its allowlist.
     const PROXY_BUILDERS = [
+      (u) => `/api/tiles?url=${encodeURIComponent(u)}`,
       (u) => `https://images.weserv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//, ''))}`,
       (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
       (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
@@ -1743,16 +1765,24 @@
       return idxs;
     }
 
-    /** Đo tốc độ thật của 3 proxy bằng 1 tile mẫu (song song) → chọn cái nhanh nhất */
+    /** Prefer the first-party relay; probe public fallbacks only if it is unavailable. */
     async function ensureFastProxy(force = false) {
       if (!force && proxyProbePromise) return proxyProbePromise;
       const p = (async () => {
         try {
           const sample = buildTileUrl(currentSourceKey, 2, 2, 1);
-          const results = await Promise.all(PROXY_BUILDERS.map(async (mk, i) => {
+          try {
+            const entry = await fetchTileEntry(PROXY_BUILDERS[0](sample), 6000);
+            entry.close();
+            activeProxyIdx = 0;
+            return true;
+          } catch (_) { /* Static-only hosting or a custom provider: try public relays. */ }
+          const results = await Promise.all(PROXY_BUILDERS.slice(1).map(async (mk, offset) => {
+            const i = offset + 1;
             const t0 = performance.now();
             try {
-              await fetchTileEntry(mk(sample), 7000);
+              const entry = await fetchTileEntry(mk(sample), 7000);
+              entry.close();
               return { i, ms: performance.now() - t0, ok: true };
             } catch (_) {
               return { i, ms: Infinity, ok: false };
@@ -1780,7 +1810,7 @@
           mode: 'cors', credentials: 'omit', cache: 'force-cache',
           referrerPolicy: 'no-referrer', signal: ctl.signal,
         });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if (!res.ok || res.type === 'opaque' || res.type === 'opaqueredirect') throw new Error('Unreadable tile: HTTP ' + res.status);
         const blob = await res.blob();
         if (!blob.type.startsWith('image')) throw new Error('not-image');
         if ('createImageBitmap' in window) {
@@ -1796,38 +1826,41 @@
       }
     }
 
-    /** Loader tốc độ cao: cache RAM → fetch/bitmap (kèm proxy) → <img> CORS → <img> thường */
+    /** Export tiles must be origin-clean. corsSafe is a hint, not a guarantee. */
     async function loadTileFast(url, corsSafe) {
       const hit = cacheTouch(url);
       if (hit) return { data: hit.data, tainted: false, cached: true };
 
-      if (corsSafe) {
-        try {
-          const entry = await fetchTileEntry(url, 12000);
-          cacheSet(url, entry);
-          return { data: entry.data, tainted: false, cached: false };
-        } catch (_) { /* rơi xuống fallback <img> bên dưới */ }
-      } else if (useProxy) {
-        // Proxy nhanh nhất (đã đo) đi trước; backup timeout NGẮN để fail-fast
-        const order = proxyOrder();
-        for (let k = 0; k < order.length; k++) {
-          try {
-            const entry = await fetchTileEntry(PROXY_BUILDERS[order[k]](url), k === 0 ? 10000 : 5000);
-            cacheSet(url, entry);
-            return { data: entry.data, tainted: false, cached: false };
-          } catch (_) { /* thử proxy kế tiếp */ }
-        }
-      }
+      const direct = async () => {
+        try { return await fetchTileEntry(url, 12000); } catch (_) {}
+        // A CORS image is safe too. Never fall back to a non-CORS remote image.
+        const img = await loadImg(url, true, 6000);
+        return img ? { data: img, close() {} } : null;
+      };
+      const remember = (entry) => {
+        cacheSet(url, entry);
+        return { data: entry.data, tainted: false, cached: false };
+      };
 
       if (corsSafe) {
-        const img = await loadImg(url, true);
-        if (img) {
-          cacheSet(url, { data: img, close() {} });
-          return { data: img, tainted: false, cached: false };
+        const entry = await direct();
+        if (entry) return remember(entry);
+      }
+      // Even a supposedly CORS-safe provider may change its response headers.
+      // Relay after a failed direct request for ALL providers, not only corsSafe=false.
+      if (useProxy) {
+        for (const [k, idx] of proxyOrder().entries()) {
+          try {
+            const entry = await fetchTileEntry(PROXY_BUILDERS[idx](url), k === 0 ? 10000 : 5000);
+            return remember(entry);
+          } catch (_) { /* Try the next readable transport. */ }
         }
       }
-      const taintedImg = await loadImg(url, false);
-      if (taintedImg) return { data: taintedImg, tainted: true, cached: false };
+      if (!corsSafe) {
+        const entry = await direct();
+        if (entry) return remember(entry);
+      }
+      // Missing tiles are reported by capture; unsafe images must never reach a canvas.
       return { data: null };
     }
 
@@ -1875,6 +1908,20 @@
       const count = Math.min(maxConcurrency, total);
       for (let i = 0; i < count; i++) pool.push(worker());
       await Promise.all(pool);
+    }
+
+    // Await encoding so errors in the download/snapshot stage are caught too.
+    function canvasToBlob(canvas, mimeType, quality) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob);
+          else {
+            const error = new Error('Canvas encoder returned no image');
+            error.name = 'CanvasEncodingError';
+            reject(error);
+          }
+        }, mimeType, quality);
+      });
     }
 
     async function executeCapture() {
@@ -2037,8 +2084,8 @@
         },
         (done, total, item, res) => {
           const { data, tainted, cached } = res || {};
-          if (data) {
-            if (tainted) taintedUsed = true;
+          if (tainted) taintedUsed = true;
+          if (data && !tainted) {
             if (cached) cachedHits++;
             proxyFailStreak = 0;
             // Chụp BIỂN: bỏ qua tile trắng đồng nhất (vùng cực không có dữ liệu)
@@ -2050,7 +2097,7 @@
               const dh = TILE_SIZE * scaleY + 0.6;
               ctx.drawImage(data, dx, dy, dw, dh);
             }
-            if (!cached && data.tagName) data.src = ''; // giải phóng <img> rồi, bản cache giữ nguyên
+            // Cached images stay decoded until their LRU entry is evicted.
           } else {
             failedCount++;
             if (viaProxy) {
@@ -2138,38 +2185,62 @@
       const mimeType = (currentFormat === 'jpeg' && !forcePng) ? 'image/jpeg' : 'image/png';
       const quality = mimeType === 'image/jpeg' ? 0.92 : undefined;
 
+      // Normal viewport/world capture exports the canvas we just drew.
+      // Previously finalCv was undeclared here, so EVERY regular capture threw
+      // ReferenceError before the encoder ran, regardless of dimensions or CORS.
+      let finalCv = canvas;
       try {
-        finalCv.toBlob((blob) => {
-          if (!blob) {
-            showToast(t('toastNoBlob'), 'error');
-            finish(t('finMem'));
-            return;
+        if (vf.equi) {
+          statusText.textContent = 'Đang chuyển đổi phép chiếu Equirectangular...';
+          progressBar.style.width = '98%';
+          await new Promise(resolve => setTimeout(resolve, 10));
+          finalCv = document.createElement('canvas');
+          finalCv.width = vf.outW;
+          finalCv.height = vf.outH;
+          const eqx = finalCv.getContext('2d');
+          for (let y = 0; y < finalCv.height; y++) {
+            const lat = 90 - (y / finalCv.height) * 180;
+            if (lat > MAX_LAT || lat < -MAX_LAT) continue;
+            const mercY = latToY(lat, srcZoom, TILE_SIZE) * (canvas.height / worldSize);
+            eqx.drawImage(canvas, 0, Math.max(0, mercY - 0.5), canvas.width, 1, 0, y, finalCv.width, 1);
           }
-          const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
-          const blobUrl = URL.createObjectURL(blob);
-          const sizeMB = (blob.size / 1048576).toFixed(2);
-          const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
-          const MASK_TAG = { all: '', land: '-' + t('fileLand'), ocean: '-' + t('fileOcean'), combo: '-' + t('fileMap'), blank: '-' + t('fileBlank') };
-          const maskTag = MASK_TAG[maskMode] || '';
-          const filename = `satellite-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}${maskTag}.${ext}`;
+        }
 
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = filename;
-          a.click();
+        const blob = await canvasToBlob(finalCv, mimeType, quality);
+        const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+        const blobUrl = URL.createObjectURL(blob);
+        const sizeMB = (blob.size / 1048576).toFixed(2);
+        const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+        const MASK_TAG = { all: '', land: '-' + t('fileLand'), ocean: '-' + t('fileOcean'), combo: '-' + t('fileMap'), blank: '-' + t('fileBlank') };
+        const maskTag = MASK_TAG[maskMode] || '';
+        const filename = `satellite-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}${maskTag}.${ext}`;
 
-          addSnapshot(blobUrl, vf.outW, vf.outH, currentRatio, totalDuration, currentScale, sizeMB, filename);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        a.click();
+        addSnapshot(blobUrl, vf.outW, vf.outH, currentRatio, totalDuration, currentScale, sizeMB, filename);
 
-          progressBar.style.width = '100%';
-          statusPct.textContent = '100%';
-          statusText.textContent = t('stDone', { d: totalDuration, m: sizeMB });
-          showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: sizeMB, d: totalDuration }), 'success');
-          finish(`${totalDuration}s (${currentScale}×)`);
-          mobileText.textContent = captureLabelText();
-        }, mimeType, quality);
+        progressBar.style.width = '100%';
+        statusPct.textContent = '100%';
+        statusText.textContent = t('stDone', { d: totalDuration, m: sizeMB });
+        showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: sizeMB, d: totalDuration }), 'success');
+        finish(`${totalDuration}s (${currentScale}×)`);
+        mobileText.textContent = captureLabelText();
       } catch (err) {
-        showToast(t('toastCanvasBlock'), 'error', 7000);
-        finish(t('finCors'));
+        console.error('Capture export failed:', err);
+        const securityError = err.name === 'SecurityError';
+        const encodingError = err.name === 'CanvasEncodingError';
+        // Toasts allow markup; escape runtime error text before displaying it.
+        const detail = `${err.name}: ${err.message}`.replace(/[&<>"']/g, c => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]);
+        showToast(t(securityError ? 'toastCanvasBlock' : encodingError ? 'toastNoBlob' : 'toastExportError', { m: detail }), 'error', 7000);
+        finish(t(securityError ? 'finCors' : 'finExport'));
+      } finally {
+        // Blob encoding is finished before releasing either backing canvas.
+        if (finalCv !== canvas) finalCv.width = finalCv.height = 0;
+        canvas.width = canvas.height = 0;
       }
     }
 
@@ -2319,13 +2390,13 @@
         async (task) => await loadTileFast(task.url, src.corsSafe),
         (done, total, item, res) => {
           const { data, tainted } = res || {};
-          if (data) {
+          if (data && !tainted) {
             const dx = (item.tx * TILE_SIZE - minPixX) * scaleX;
             const dy = (item.ty * TILE_SIZE - minPixY) * scaleY;
             const dw = TILE_SIZE * scaleX + 0.6, dh = TILE_SIZE * scaleY + 0.6;
             ctxL.drawImage(data, dx, dy, dw, dh);               // lớp đất: giữ tất cả
             if (!tainted && !isUniformBlank(data)) ctxO.drawImage(data, dx, dy, dw, dh); // lớp biển: bỏ vùng trống
-            if (!tainted && data.tagName) data.src = '';
+            // Do not clear the src of an image retained by tileCache.
           } else failed++;
           const pct = Math.round((done / total) * 95);
           progressBar.style.width = `${pct}%`; statusPct.textContent = `${pct}%`;
@@ -2439,18 +2510,9 @@
       prefetchTimer = setTimeout(() => prefetchViewfinder(tk), delay);
     }
 
-    /** Prefetch "nhẹ" cho nguồn chặn CORS: chỉ dùng 1 proxy nhanh nhất,
-     *  ít luồng hơn để không spam dịch vụ proxy công cộng. */
+    /** Prefetch and capture share the same origin-clean loading and cache rules. */
     async function loadTileLight(url, corsSafe) {
-      if (corsSafe) return loadTileFast(url, true);
-      try {
-        // Dùng đúng proxy nhanh nhất đã đo (mặc định weserv)
-        const entry = await fetchTileEntry(PROXY_BUILDERS[activeProxyIdx](url), 12000);
-        cacheSet(url, entry);
-        return { data: entry.data, tainted: false, cached: false };
-      } catch (_) {
-        return { data: null }; // im lặng — lúc chụp sẽ chạy fallback đầy đủ
-      }
+      return loadTileFast(url, corsSafe);
     }
 
     async function prefetchViewfinder(token) {

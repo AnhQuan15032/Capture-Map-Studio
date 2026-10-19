@@ -1,0 +1,19 @@
+{
+  "name": "capture-map-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "dev": "wrangler dev --ip 0.0.0.0",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler preview"
+  },
+  "devDependencies": {
+    "wrangler": "4.151.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
