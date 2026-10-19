@@ -71,3 +71,9 @@ The export loader now accepts only CORS-readable fetched images or anonymous-COR
 The relay allows only built-in tile hosts and tile-shaped paths; custom URLs cannot make it fetch arbitrary servers. It permits HTTPS GET only, rejects redirects and non-raster responses, forwards no user credentials, enforces a 12-second upstream timeout and a 5 MiB image limit, and caches successful images. Provider failures are not converted into successful image responses. This is a CORS transport fix, not a bypass for provider authentication, availability, or usage terms.
 
 Deploy the **Worker**, not just `dist/index.html`, and leave the proxy toggle enabled when a provider blocks direct CORS loads. A browser preview by itself does not establish that image export is allowed.
+
+## Full-capture export regression
+
+The main capture path previously called `finalCv.toBlob()` without ever assigning `finalCv`. That threw a `ReferenceError` before encoding even a small image; the catch block incorrectly reported a CORS or device-memory problem. Regular captures now explicitly export the assembled canvas, with a separate reprojected canvas for equirectangular output. Encoding is awaited before download/snapshot handling and canvas cleanup. Runtime errors retain their actual diagnostic details; a null encoder result is not labeled as proof of exhausted device memory.
+
+`tests/capture.test.mjs` runs the production capture entry point through encoding and download with mocked DOM/tiles, covering 1444×812 JPEG/PNG, repeated captures, land-only PNG, equirectangular output, null encoding, and distinct runtime/security errors. A full-page Chromium check also exercised the actual Capture button and decoded the resulting JPEG/PNG downloads at 1444×812, plus 512×512 and 512×256 world modes. That browser check used a mocked NASA upstream and real local copies of the page's libraries, not live upstream tile services.

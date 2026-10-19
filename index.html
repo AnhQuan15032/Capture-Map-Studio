@@ -652,7 +652,7 @@
         stDualInit: 'Xuất 2 lớp: khởi tạo...', stDualTiles: '2 lớp: {d}/{tot} tiles...', stDualSplit: 'Đang tách Biển / Đất liền...',
         stDone: 'Xong trong {d}s — {m} MB',
         stMaskLoad: 'Đang tải bờ biển...', stMaskErr: 'Lỗi tải dữ liệu',
-        finCors: 'Lỗi CORS', finMem: 'Lỗi bộ nhớ', finProxy: 'Proxy quá tải — bấm chụp lại',
+        finCors: 'Lỗi CORS', finMem: 'Lỗi bộ nhớ', finExport: 'Lỗi xuất ảnh', finProxy: 'Proxy quá tải — bấm chụp lại',
         toastProxyWarn: 'Nguồn <b>{name}</b> chặn CORS. Hãy bật "Proxy CORS" để xuất được ảnh.',
         toastTurboOn: '<b>Turbo bật:</b> tối đa ~320 tiles/lần chụp, nhanh hơn khoảng 4 lần.',
         toastTurboOff: '<b>Turbo tắt:</b> chế độ Max Detail — nhiều tile hơn, sắc nét tối đa.',
@@ -666,7 +666,8 @@
         toastTooManyFail: '<b>{f}/{tot} tiles thất bại</b> — proxy CORS đang quá tải nên đã hủy xuất. Bấm chụp lại: engine sẽ tự đo & đổi sang proxy khác.',
         toastSomeFail: '{f}/{tot} tiles tải thất bại (mạng yếu hoặc nguồn giới hạn). Ảnh có thể có vệt trống.',
         toastExportOk: '<b>Xuất ảnh thành công!</b> {w}×{h}px • {m} MB • {d}s',
-        toastNoBlob: 'Không tạo được ảnh từ Canvas (thiết bị quá tải). Hãy giảm hệ số Scale.',
+        toastNoBlob: 'Bộ mã hóa Canvas không trả về ảnh. Hãy thử định dạng PNG hoặc chụp lại.',
+        toastExportError: 'Không xuất được ảnh: {m}',
         toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri World Imagery hoặc bật Proxy CORS.',
         toastMapReady: 'Bản đồ chưa sẵn sàng, thử lại sau giây lát.',
         toastFlipInfo: 'Chỉ hỗ trợ đảo chiều nhanh giữa 16:9 và 9:16.',
@@ -736,7 +737,7 @@
         stDualInit: 'Dual layers: init...', stDualTiles: '2 layers: {d}/{tot} tiles...', stDualSplit: 'Splitting Ocean / Land...',
         stDone: 'Done in {d}s — {m} MB',
         stMaskLoad: 'Loading coastlines...', stMaskErr: 'Data load error',
-        finCors: 'CORS error', finMem: 'Memory error', finProxy: 'Proxy overloaded — tap capture again',
+        finCors: 'CORS error', finMem: 'Memory error', finExport: 'Export error', finProxy: 'Proxy overloaded — tap capture again',
         toastProxyWarn: 'Source <b>{name}</b> blocks CORS. Enable "CORS proxy" to export images.',
         toastTurboOn: '<b>Turbo on:</b> max ~320 tiles per capture, roughly 4× faster.',
         toastTurboOff: '<b>Turbo off:</b> Max Detail mode — more tiles, maximum sharpness.',
@@ -750,7 +751,8 @@
         toastTooManyFail: '<b>{f}/{tot} tiles failed</b> — CORS proxy overloaded, export cancelled. Capture again: the engine will re-probe and switch proxies.',
         toastSomeFail: '{f}/{tot} tiles failed (weak network or source limit). Image may have blank streaks.',
         toastExportOk: '<b>Export successful!</b> {w}×{h}px • {m} MB • {d}s',
-        toastNoBlob: 'Could not encode canvas (device overloaded). Lower the Scale factor.',
+        toastNoBlob: 'The canvas encoder returned no image. Try PNG or capture again.',
+        toastExportError: 'Image export failed: {m}',
         toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri World Imagery or enable the CORS proxy.',
         toastMapReady: 'Map not ready yet, try again in a moment.',
         toastFlipInfo: 'Quick flip only works between 16:9 and 9:16.',
@@ -1908,6 +1910,20 @@
       await Promise.all(pool);
     }
 
+    // Await encoding so errors in the download/snapshot stage are caught too.
+    function canvasToBlob(canvas, mimeType, quality) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob);
+          else {
+            const error = new Error('Canvas encoder returned no image');
+            error.name = 'CanvasEncodingError';
+            reject(error);
+          }
+        }, mimeType, quality);
+      });
+    }
+
     async function executeCapture() {
       if (isCapturing) return;
       isCapturing = true;
@@ -2169,39 +2185,62 @@
       const mimeType = (currentFormat === 'jpeg' && !forcePng) ? 'image/jpeg' : 'image/png';
       const quality = mimeType === 'image/jpeg' ? 0.92 : undefined;
 
+      // Normal viewport/world capture exports the canvas we just drew.
+      // Previously finalCv was undeclared here, so EVERY regular capture threw
+      // ReferenceError before the encoder ran, regardless of dimensions or CORS.
+      let finalCv = canvas;
       try {
-        finalCv.toBlob((blob) => {
-          if (!blob) {
-            showToast(t('toastNoBlob'), 'error');
-            finish(t('finMem'));
-            return;
+        if (vf.equi) {
+          statusText.textContent = 'Đang chuyển đổi phép chiếu Equirectangular...';
+          progressBar.style.width = '98%';
+          await new Promise(resolve => setTimeout(resolve, 10));
+          finalCv = document.createElement('canvas');
+          finalCv.width = vf.outW;
+          finalCv.height = vf.outH;
+          const eqx = finalCv.getContext('2d');
+          for (let y = 0; y < finalCv.height; y++) {
+            const lat = 90 - (y / finalCv.height) * 180;
+            if (lat > MAX_LAT || lat < -MAX_LAT) continue;
+            const mercY = latToY(lat, srcZoom, TILE_SIZE) * (canvas.height / worldSize);
+            eqx.drawImage(canvas, 0, Math.max(0, mercY - 0.5), canvas.width, 1, 0, y, finalCv.width, 1);
           }
-          const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
-          const blobUrl = URL.createObjectURL(blob);
-          const sizeMB = (blob.size / 1048576).toFixed(2);
-          const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
-          const MASK_TAG = { all: '', land: '-' + t('fileLand'), ocean: '-' + t('fileOcean'), combo: '-' + t('fileMap'), blank: '-' + t('fileBlank') };
-          const maskTag = MASK_TAG[maskMode] || '';
-          const filename = `satellite-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}${maskTag}.${ext}`;
+        }
 
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = filename;
-          a.click();
+        const blob = await canvasToBlob(finalCv, mimeType, quality);
+        const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+        const blobUrl = URL.createObjectURL(blob);
+        const sizeMB = (blob.size / 1048576).toFixed(2);
+        const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+        const MASK_TAG = { all: '', land: '-' + t('fileLand'), ocean: '-' + t('fileOcean'), combo: '-' + t('fileMap'), blank: '-' + t('fileBlank') };
+        const maskTag = MASK_TAG[maskMode] || '';
+        const filename = `satellite-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}${maskTag}.${ext}`;
 
-          addSnapshot(blobUrl, vf.outW, vf.outH, currentRatio, totalDuration, currentScale, sizeMB, filename);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        a.click();
+        addSnapshot(blobUrl, vf.outW, vf.outH, currentRatio, totalDuration, currentScale, sizeMB, filename);
 
-          progressBar.style.width = '100%';
-          statusPct.textContent = '100%';
-          statusText.textContent = t('stDone', { d: totalDuration, m: sizeMB });
-          showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: sizeMB, d: totalDuration }), 'success');
-          finish(`${totalDuration}s (${currentScale}×)`);
-          mobileText.textContent = captureLabelText();
-        }, mimeType, quality);
+        progressBar.style.width = '100%';
+        statusPct.textContent = '100%';
+        statusText.textContent = t('stDone', { d: totalDuration, m: sizeMB });
+        showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: sizeMB, d: totalDuration }), 'success');
+        finish(`${totalDuration}s (${currentScale}×)`);
+        mobileText.textContent = captureLabelText();
       } catch (err) {
+        console.error('Capture export failed:', err);
         const securityError = err.name === 'SecurityError';
-        showToast(t(securityError ? 'toastCanvasBlock' : 'toastNoBlob'), 'error', 7000);
-        finish(t(securityError ? 'finCors' : 'finMem'));
+        const encodingError = err.name === 'CanvasEncodingError';
+        // Toasts allow markup; escape runtime error text before displaying it.
+        const detail = `${err.name}: ${err.message}`.replace(/[&<>"']/g, c => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]);
+        showToast(t(securityError ? 'toastCanvasBlock' : encodingError ? 'toastNoBlob' : 'toastExportError', { m: detail }), 'error', 7000);
+        finish(t(securityError ? 'finCors' : 'finExport'));
+      } finally {
+        // Blob encoding is finished before releasing either backing canvas.
+        if (finalCv !== canvas) finalCv.width = finalCv.height = 0;
+        canvas.width = canvas.height = 0;
       }
     }
 
