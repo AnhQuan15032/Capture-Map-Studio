@@ -308,9 +308,9 @@
             <input type="checkbox" id="custom-res-check" class="w-4 h-4 accent-cyan-400 cursor-pointer" />
           </label>
           <div id="custom-res-row" class="hidden items-center gap-1.5">
-            <input type="number" id="custom-w" min="64" max="16384" step="2" value="3840" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
+            <input type="number" id="custom-w" min="64" step="2" value="3840" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
             <span class="text-slate-500 text-xs font-mono shrink-0">×</span>
-            <input type="number" id="custom-h" min="64" max="16384" step="2" value="2160" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
+            <input type="number" id="custom-h" min="64" step="2" value="2160" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
           </div>
           <div id="custom-presets" class="hidden flex-wrap gap-1">
             <button data-cw="1920" data-ch="1080" class="custom-preset px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:text-cyan-200 transition">1080p</button>
@@ -328,7 +328,7 @@
             <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> <span data-i18n="safetyGpu">Giới hạn an toàn GPU</span>
             <span class="text-slate-500 text-[10px] font-mono" data-i18n="safetyHint">chống sập tab</span>
           </span>
-          <input type="checkbox" id="safety-check" checked class="w-4 h-4 accent-emerald-400 cursor-pointer" />
+          <input type="checkbox" id="safety-check" class="w-4 h-4 accent-emerald-400 cursor-pointer" />
         </label>
 
         <!-- Cảnh báo nếu scale cao hoặc tắt giới hạn an toàn -->
@@ -448,6 +448,12 @@
             <i data-lucide="map" class="w-4 h-4"></i> <span data-i18n="areaEqui">Toàn cầu 2:1<br>(Không giãn)</span>
           </button>
         </div>
+        <label class="flex items-center justify-between gap-2 text-xs text-slate-300">
+          <span data-i18n="worldCenter">Kinh tuyến giữa (toàn cầu)</span>
+          <input id="world-center" type="number" min="-180" max="180" step="0.1" value="11.5" class="w-24 bg-slate-900 border border-cyan-400/30 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200" />
+        </label>
+        <p class="text-[10px] text-slate-500" data-i18n="worldSizeHint">Kích thước tùy chỉnh áp dụng cả cho toàn cầu. Chọn W=H cho ảnh vuông, hoặc W=2H cho ảnh toàn cầu 2:1.</p>
+        <p class="text-[10px] text-slate-500" data-i18n="worldCenterHint">11,5°Đ: mép bản đồ ở eo biển Bering, giữ liền phần đất Nga. Chỉ áp dụng cho xuất toàn cầu.</p>
         <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
           <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
           <span id="area-note" data-i18n-html="areaWorldNote"><b>Toàn cầu vuông (Web Mercator):</b> xuất trọn thế giới vuông ±85°. Scale 16× = 4096px. Bị kéo giãn mạnh ở vùng cực (phù hợp với bản đồ web).</span>
@@ -609,9 +615,9 @@
         toastCustomOff: 'Đã tắt kích thước tùy chỉnh — quay về hệ số Scale.',
         safetyGpu: 'Giới hạn an toàn GPU', safetyHint: 'chống sập tab',
         warnSuper: '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.',
-        warnUnsafe: '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.',
+        warnUnsafe: '<b>Không giới hạn kích thước bởi app:</b> trình duyệt và RAM vẫn có giới hạn thực tế. Ảnh quá lớn có thể không xuất được hoặc làm sập tab; số pixel không thể vô hạn.',
         outSize: 'Kích thước ảnh xuất:', outMp: 'Tổng số megapixel:', outTiles: 'Số mảnh tile cần tải:',
-        outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'TẮT — rủi ro cao',
+        outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'Không giới hạn bởi app · tùy trình duyệt/RAM',
         srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'NASA Blue Marble · địa hình & đáy biển · zoom gốc 8',
         srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · biển xanh · mức tile tối đa 8',
         srcTitle: 'Nguồn ảnh vệ tinh', srcSubEsri: 'CORS OK — xuất ổn định 100%',
@@ -626,6 +632,8 @@
         toastCustomProviderApplied: '<b>Đã thêm provider tùy chỉnh:</b> {name}', toastCustomProviderInvalid: 'URL provider không hợp lệ. Cần chứa ít nhất <code>{z}</code>, <code>{x}</code>, <code>{y}</code>.',
         proxyToggle: 'Proxy CORS cho nguồn bị chặn',
         ratioTitle: 'Tỉ lệ khung hình', flip: 'Đảo chiều', full: 'Toàn màn', thirds: 'Lưới căn bố cục 1/3',
+        worldSizeHint: 'Kích thước tùy chỉnh áp dụng cả cho toàn cầu. Chọn W=H cho ảnh vuông, hoặc W=2H cho ảnh toàn cầu 2:1.',
+        worldCenter: 'Kinh tuyến giữa (toàn cầu)', worldCenterHint: '11,5°Đ: mép bản đồ ở eo biển Bering, giữ liền phần đất Nga. Chỉ áp dụng cho xuất toàn cầu.',
         areaTitle: 'Vùng chụp', areaView: 'Khung ngắm', areaWorld: 'Toàn cầu vuông', areaEqui: 'Toàn cầu 2:1<br>(Không giãn)',
         areaWorldNote: '<b>Toàn cầu vuông (Web Mercator):</b> xuất trọn thế giới vuông ±85°. Phép chiếu chuẩn của web, bị kéo giãn mạnh ở vùng cực.',
         areaEquiNote: '<b>Toàn cầu phẳng 2:1 (Equirectangular):</b> xuất ảnh tỷ lệ chuẩn 2:1 (±90°). Giữ đúng tỷ lệ thực ở các cực, lý tưởng làm texture 3D (Blender/Unity). Rất nặng!',
@@ -656,7 +664,7 @@
         toastProxyWarn: 'Nguồn <b>{name}</b> chặn CORS. Hãy bật "Proxy CORS" để xuất được ảnh.',
         toastTurboOn: '<b>Turbo bật:</b> tối đa ~320 tiles/lần chụp, nhanh hơn khoảng 4 lần.',
         toastTurboOff: '<b>Turbo tắt:</b> chế độ Max Detail — nhiều tile hơn, sắc nét tối đa.',
-        toastSafetyOff: '<b>Đã tắt giới hạn an toàn GPU.</b> Kích thước canvas giờ theo đúng Scale (tối đa 16384px) — vượt RAM thiết bị sẽ sập tab.',
+        toastSafetyOff: '<b>Đã tắt giới hạn kích thước của app.</b> Xuất đúng kích thước yêu cầu; trình duyệt/RAM vẫn có thể từ chối ảnh quá lớn.',
         toastSafetyOn: 'Đã bật lại giới hạn an toàn GPU theo phần cứng thiết bị.',
         toastPng: 'Đã chuyển sang <b>PNG</b> để giữ vùng trong suốt (JPEG không hỗ trợ alpha).',
         toast10m: 'Bờ biển 10m nặng ~4MB, lần tải đầu có thể mất vài giây.',
@@ -668,6 +676,7 @@
         toastExportOk: '<b>Xuất ảnh thành công!</b> {w}×{h}px • {m} MB • {d}s',
         toastNoBlob: 'Bộ mã hóa Canvas không trả về ảnh. Hãy thử định dạng PNG hoặc chụp lại.',
         toastExportError: 'Không xuất được ảnh: {m}',
+        toastCanvasSize: 'Trình duyệt từ chối Canvas {w} × {h}px. Đây là giới hạn thực tế của trình duyệt/RAM, không phải giới hạn kích thước của app.',
         toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri World Imagery hoặc bật Proxy CORS.',
         toastMapReady: 'Bản đồ chưa sẵn sàng, thử lại sau giây lát.',
         toastFlipInfo: 'Chỉ hỗ trợ đảo chiều nhanh giữa 16:9 và 9:16.',
@@ -694,9 +703,9 @@
         toastCustomOff: 'Custom resolution off — back to the Scale factor.',
         safetyGpu: 'GPU safety limit', safetyHint: 'anti-crash',
         warnSuper: '<b>Ultra-sharp mode:</b> the adaptive GPU limiter clamps canvas size to your device hardware to prevent tab crashes.',
-        warnUnsafe: '<b>Safety limit OFF:</b> the canvas follows Scale exactly, capped only at the browser ceiling of 16384px. Huge images may crash the tab — at your own risk.',
+        warnUnsafe: '<b>No app dimension cap:</b> browser canvas and RAM limits still apply. Huge images may fail or crash the tab; pixel counts cannot be infinite.',
         outSize: 'Output size:', outMp: 'Total megapixels:', outTiles: 'Tiles to fetch:',
-        outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'OFF — high risk',
+        outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'No app cap · browser/RAM limits',
         srcPinned: 'Pinned', srcSubSatelliteWorld: 'NASA Blue Marble · shaded relief & bathymetry · native zoom 8',
         srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · blue oceans · tile zoom capped at 8',
         srcTitle: 'Satellite imagery source', srcSubEsri: 'CORS OK — 100% stable export',
@@ -711,6 +720,8 @@
         toastCustomProviderApplied: '<b>Custom provider added:</b> {name}', toastCustomProviderInvalid: 'Invalid provider URL. It must include at least <code>{z}</code>, <code>{x}</code>, and <code>{y}</code>.',
         proxyToggle: 'CORS proxy for blocked sources',
         ratioTitle: 'Aspect ratio', flip: 'Flip', full: 'Full', thirds: 'Rule-of-thirds grid',
+        worldSizeHint: 'Custom dimensions apply to full-world exports too. Use W=H for square output or W=2H for a 2:1 world image.',
+        worldCenter: 'World center longitude', worldCenterHint: '11.5°E places the seam in the Bering Strait, keeping mainland Russia together. Full-world exports only.',
         areaTitle: 'Capture area', areaView: 'Viewfinder', areaWorld: 'Global Square', areaEqui: 'Global 2:1<br>(Flat)',
         areaWorldNote: '<b>Global Square (Web Mercator):</b> exports the ±85° world. Standard web projection, heavily stretched at the poles.',
         areaEquiNote: '<b>Global Flat 2:1 (Equirectangular):</b> exports true 2:1 ratio (±90°). No polar stretching, ideal for 3D globe textures (Blender/Unity). Very heavy to process!',
@@ -741,7 +752,7 @@
         toastProxyWarn: 'Source <b>{name}</b> blocks CORS. Enable "CORS proxy" to export images.',
         toastTurboOn: '<b>Turbo on:</b> max ~320 tiles per capture, roughly 4× faster.',
         toastTurboOff: '<b>Turbo off:</b> Max Detail mode — more tiles, maximum sharpness.',
-        toastSafetyOff: '<b>GPU safety limit disabled.</b> Canvas now follows Scale exactly (up to 16384px) — exceeding device RAM may crash the tab.',
+        toastSafetyOff: '<b>App dimension caps disabled.</b> Requested dimensions are preserved; the browser/RAM may still reject very large images.',
         toastSafetyOn: 'GPU safety limit re-enabled for this device.',
         toastPng: 'Switched to <b>PNG</b> to preserve transparency (JPEG has no alpha).',
         toast10m: '10m coastlines are ~4MB; first load may take a few seconds.',
@@ -753,6 +764,7 @@
         toastExportOk: '<b>Export successful!</b> {w}×{h}px • {m} MB • {d}s',
         toastNoBlob: 'The canvas encoder returned no image. Try PNG or capture again.',
         toastExportError: 'Image export failed: {m}',
+        toastCanvasSize: 'The browser rejected a {w} × {h}px canvas. Browser/RAM limits still apply even without app dimension caps.',
         toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri World Imagery or enable the CORS proxy.',
         toastMapReady: 'Map not ready yet, try again in a moment.',
         toastFlipInfo: 'Quick flip only works between 16:9 and 9:16.',
@@ -818,7 +830,8 @@
 
     // Bộ đệm tile kiểu LRU → chụp lặp cùng vùng = tức thì
     let turboMode = true;
-    let safetyLimitOn = true; // tắt = canvas chỉ bị chặn bởi trần trình duyệt (rủi ro sập tab)
+    let safetyLimitOn = false; // Optional app safety caps; browser/RAM limits always apply.
+    let worldCenterLng = 11.5; // Seam at 168.5°W, in the Bering Strait, not through mainland Russia.
     let customResOn = false;  // kích thước pixel chính xác, đè hệ số Scale
     let customW = 3840, customH = 2160;
 
@@ -1043,6 +1056,12 @@
       return offs;
     }
 
+    function worldPixelBounds(srcZoom) {
+      const size = TILE_SIZE * Math.pow(2, srcZoom);
+      const minPixX = size * worldCenterLng / 360;
+      return { minPixX, maxPixX: minPixX + size, minPixY: 0, maxPixY: size };
+    }
+
     /** Số tile bao phủ khung hình ở một mức zoom nguồn (hàng ngang có thể > 2^z khi vắt rìa) */
     function countTiles(x0, y0, x1, y1, srcZoom) {
       const b = pixelBoundsAt(x0, y0, x1, y1, srcZoom);
@@ -1056,10 +1075,7 @@
     /** Trần canvas thích ứng theo phần cứng / hệ điều hành */
     function getCanvasCaps() {
       if (!safetyLimitOn) {
-        // Trần TỐI ĐA mà Chrome/Safari cho phép (≈65536px/edge trên desktop mạnh, ~32768px trên mobile)
-        const isMob = window.innerWidth < 1024 || /Mobi|Android/i.test(navigator.userAgent);
-        const d = isMob ? 16384 : 32768;
-        return { maxArea: d * d, maxDim: d, label: t('capOff') };
+        return { maxArea: Infinity, maxDim: Infinity, label: t('capOff') };
       }
       const ua = navigator.userAgent;
       const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1105,19 +1121,19 @@
         vfBox.style.display = 'none';
         worldBadge.classList.remove('hidden');
 
-        // Tính zoom nguồn giống nhau
-        const zDim = Math.floor(Math.log2(caps.maxDim / 256));
-        const zArea = Math.floor(Math.log2(Math.sqrt(caps.maxArea) / 256));
-        let srcZoom = Math.max(0, Math.min(Math.round(Math.log2(currentScale)), zDim, zArea));
-        const dim = Math.min(caps.maxDim, TILE_SIZE * Math.pow(2, srcZoom));
-        
-        let outW = dim, outH = dim;
-        if (captureArea === 'equi') {
-          outH = Math.floor(dim / 2); // Equirectangular luôn là 2:1
-        }
-        const totalTiles = Math.pow(4, srcZoom);
+        let outW = useCustom ? customW : TILE_SIZE * Math.pow(2, Math.max(0, Math.round(Math.log2(currentScale))));
+        let outH = useCustom ? customH : (captureArea === 'equi' ? Math.floor(outW / 2) : outW);
+        const k = Math.min(1, caps.maxDim / outW, caps.maxDim / outH, Math.sqrt(caps.maxArea / (outW * outH)));
+        const clamped = k < 1;
+        if (clamped) { outW = Math.max(1, Math.floor(outW * k)); outH = Math.max(1, Math.floor(outH * k)); }
+        // Output pixels and source detail are separate: don't request nonexistent
+        // tile levels when a low-resolution provider is upscaled to a large image.
+        const srcZoom = Math.min(TILE_SOURCES[currentSourceKey].maxZoom, Math.max(0, Math.ceil(Math.log2(outW / TILE_SIZE))));
+        const bounds = worldPixelBounds(srcZoom);
+        const columns = Math.ceil(bounds.maxPixX / TILE_SIZE) - Math.floor(bounds.minPixX / TILE_SIZE);
+        const totalTiles = columns * Math.pow(2, srcZoom);
 
-        $('vf-ratio-tag').textContent = captureArea === 'equi' ? 'EQUI 2:1' : 'WORLD';
+        $('vf-ratio-tag').textContent = captureArea === 'equi' ? (useCustom ? 'EQUI CUSTOM' : 'EQUI 2:1') : (useCustom ? 'WORLD CUSTOM' : 'WORLD');
         $('vf-dim-tag').textContent = `${outW} × ${outH} px (${currentScale}×)`;
         $('world-dim').textContent = `${outW} × ${outH} px`;
         $('world-info').textContent = `${totalTiles} tiles • z${srcZoom}`;
@@ -1132,13 +1148,13 @@
         $('scale-warning').classList.toggle('hidden', !(currentScale >= 16 || !safetyLimitOn));
         $('scale-warning-text').innerHTML = safetyLimitOn
           ? '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.'
-          : '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.';
+          : t('warnUnsafe');
         $('info-cache').textContent = `${tileCache.size} tiles`;
 
         const center = map.getCenter();
         $('hud-coords').textContent = `${center.lat.toFixed(3)}°, ${center.lng.toFixed(3)}° • ${captureArea.toUpperCase()}`;
 
-        return { world: true, equi: captureArea === 'equi', x0: 0, y0: 0, x1: W, y1: H, fw: W, fh: H, outW, outH, srcZoom, totalTiles, clamped: false };
+        return { world: true, equi: captureArea === 'equi', x0: 0, y0: 0, x1: W, y1: H, fw: W, fh: H, outW, outH, srcZoom, totalTiles, clamped };
       }
       worldBadge.classList.add('hidden');
 
@@ -1221,7 +1237,7 @@
       $('scale-warning').classList.toggle('hidden', !warnOn);
       $('scale-warning-text').innerHTML = safetyLimitOn
         ? '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.'
-        : '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.';
+        : t('warnUnsafe');
       $('info-cache').textContent = `${tileCache.size} tiles`;
       $('scale-badge').textContent = useCustom
         ? `${customW} × ${customH} px`
@@ -1372,8 +1388,10 @@
     $('custom-res-check').addEventListener('change', (e) => setCustomRes(e.target.checked));
 
     function setCustomSize(w, h) {
-      customW = Math.min(16384, Math.max(64, Math.round(w)));
-      customH = Math.min(16384, Math.max(64, Math.round(h)));
+      // Validate representable, finite integer inputs, but impose no pixel ceiling.
+      if (!Number.isSafeInteger(Math.round(w)) || !Number.isSafeInteger(Math.round(h)) || w < 64 || h < 64) return;
+      customW = Math.round(w);
+      customH = Math.round(h);
       $('custom-w').value = customW;
       $('custom-h').value = customH;
       updateViewfinder();
@@ -1702,9 +1720,18 @@
         else if (area === 'world') noteEl.innerHTML = t('areaWorldNote');
         else if (area === 'equi') noteEl.innerHTML = t('areaEquiNote');
       }
-      if (area === 'world' || area === 'equi') showToast(t('toastWorld'), 'info', 4000);
+      if (area === 'world' || area === 'equi') {
+        map.setView([0, worldCenterLng], 2);
+        showToast(t('toastWorld'), 'info', 4000);
+      }
       updateViewfinder();
     }
+    $('world-center').addEventListener('input', e => {
+      if (!Number.isFinite(e.target.valueAsNumber)) return;
+      worldCenterLng = Math.max(-180, Math.min(180, e.target.valueAsNumber));
+      if (captureArea !== 'viewport') map.setView([0, worldCenterLng], 2);
+      updateViewfinder();
+    });
     document.querySelectorAll('.area-btn').forEach(b => {
       b.addEventListener('click', () => setCaptureArea(b.getAttribute('data-area')));
     });
@@ -1870,9 +1897,14 @@
       if (vf.world) {
         const n = Math.pow(2, vf.srcZoom);
         const out = [];
+        const b = worldPixelBounds(vf.srcZoom);
+        const first = Math.floor(b.minPixX / TILE_SIZE);
+        const last = Math.ceil(b.maxPixX / TILE_SIZE) - 1;
         for (let ty = 0; ty < n; ty++)
-          for (let tx = 0; tx < n; tx++)
-            out.push({ tx, ty, url: buildTileUrl(currentSourceKey, vf.srcZoom, tx, ty) });
+          for (let tx = first; tx <= last; tx++) {
+            const wrappedX = ((tx % n) + n) % n;
+            out.push({ tx, ty, url: buildTileUrl(currentSourceKey, vf.srcZoom, wrappedX, ty) });
+          }
         return out;
       }
       // Pixel tuyệt đối → không sai ở rìa kinh tuyến 180°
@@ -1953,7 +1985,7 @@
 
       // Biên pixel tuyệt đối — vắt qua kinh tuyến 180° vẫn liền mạch
       const pb = vf.world
-        ? { minPixX: 0, maxPixX: worldSize, minPixY: 0, maxPixY: worldSize }
+        ? worldPixelBounds(srcZoom)
         : pixelBoundsAt(vf.x0, vf.y0, vf.x1, vf.y1, srcZoom);
       const minPixX = pb.minPixX, maxPixX = pb.maxPixX;
       const minPixY = pb.minPixY, maxPixY = pb.maxPixY;
@@ -2037,13 +2069,27 @@
         return;
       }
 
-      // Danh sách tile dùng chung thuật toán với prefetch (đồng bộ 100%)
-      const tileTasks = enumerateTileUrls(vf);
-
+      // No app dimension cap: verify what the browser actually accepted before
+      // enumerating potentially many source tiles. Canvas attributes may wrap.
       const canvas = document.createElement('canvas');
-      canvas.width = vf.outW;
-      canvas.height = vf.outH;
-      const ctx = canvas.getContext('2d');
+      let ctx;
+      try {
+        canvas.width = vf.outW;
+        canvas.height = vf.outH;
+        ctx = canvas.getContext('2d');
+        if (canvas.width !== vf.outW || canvas.height !== vf.outH || !ctx) {
+          throw new RangeError(`Browser rejected the requested ${vf.outW} × ${vf.outH} canvas`);
+        }
+      } catch (err) {
+        canvas.width = canvas.height = 0;
+        showToast(t('toastCanvasSize', { w: vf.outW, h: vf.outH }), 'error', 8000);
+        $('speed-indicator').textContent = t('finExport');
+        isCapturing = false;
+        mobileText.textContent = captureLabelText();
+        setTimeout(() => progressBox.classList.add('hidden'), 3200);
+        return;
+      }
+      const tileTasks = enumerateTileUrls(vf);
       if (maskMode === 'all') {           // có mask → giữ nền trong suốt tuyệt đối
         ctx.fillStyle = '#06101e';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2276,7 +2322,7 @@
       const srcZoom = vf.srcZoom;
       const worldSize = TILE_SIZE * Math.pow(2, srcZoom);
       const pb = vf.world
-        ? { minPixX: 0, maxPixX: worldSize, minPixY: 0, maxPixY: worldSize }
+        ? worldPixelBounds(srcZoom)
         : pixelBoundsAt(vf.x0, vf.y0, vf.x1, vf.y1, srcZoom);
       const minPixX = pb.minPixX, maxPixX = pb.maxPixX;
       const minPixY = pb.minPixY, maxPixY = pb.maxPixY;
@@ -2362,8 +2408,8 @@
       const tileTasks = enumerateTileUrls(vf);
 
       // Hai canvas nền: lớp đất giữ MỌI tile, lớp biển bỏ tile trắng đồng nhất
-      const baseLand = document.createElement('canvas');
-      const baseOcean = document.createElement('canvas');
+      let baseLand = document.createElement('canvas');
+      let baseOcean = document.createElement('canvas');
       baseLand.width = baseOcean.width = vf.outW;
       baseLand.height = baseOcean.height = vf.outH;
       const ctxL = baseLand.getContext('2d');

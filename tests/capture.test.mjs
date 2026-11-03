@@ -5,9 +5,10 @@ import vm from 'node:vm';
 
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 // Exercise the actual capture entry point, not just individual tile/canvas helpers.
+const worldBoundsCode = html.slice(html.indexOf('    function worldPixelBounds('), html.indexOf('    /** Số tile bao phủ'));
 const captureCode = html.slice(html.indexOf('    async function runParallelPool('), html.indexOf("    $('desktop-btn-capture').addEventListener"));
 
-function harness({ equi = false, format = 'jpeg', mask = 'all', encoder = 'ok', failure } = {}) {
+function harness({ equi = false, format = 'jpeg', mask = 'all', encoder = 'ok', failure, rejectCanvas = false } = {}) {
   const canvases = [], encodes = [], downloads = [], snapshots = [], toasts = [], errors = [];
   const elements = new Map();
   const element = id => {
@@ -19,7 +20,7 @@ function harness({ equi = false, format = 'jpeg', mask = 'all', encoder = 'ok', 
   class FakeCanvas {
     width = 0; height = 0; draws = [];
     getContext() {
-      return { fillRect() {}, drawImage: (...args) => this.draws.push(args) };
+      return rejectCanvas ? null : { fillRect() {}, drawImage: (...args) => this.draws.push(args) };
     }
     toBlob(callback, mimeType, quality) {
       encodes.push({ canvas: this, w: this.width, h: this.height, mimeType, quality });
@@ -53,7 +54,8 @@ function harness({ equi = false, format = 'jpeg', mask = 'all', encoder = 'ok', 
     latToY: (lat, zoom, size) => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2 * size * 2 ** zoom,
   });
   function $(id) { return element(id); }
-  vm.runInContext(`let isCapturing = false, prefetchToken = 0, prefetchTimer = null;
+  vm.runInContext(`let isCapturing = false, prefetchToken = 0, prefetchTimer = null, worldCenterLng = 11.5;
+    ${worldBoundsCode}
     const TILE_SIZE = 256, MAX_LAT = 85.05112878;
     let currentSourceKey = 'nasa_night', currentScale = 2, currentRatio = '16:9';
     let currentFormat = ${JSON.stringify(format)}, maskMode = ${JSON.stringify(mask)}, maskDetail = '110m', oceanColor = '#123456';
@@ -123,5 +125,14 @@ test('a genuine canvas SecurityError is still identified as CORS', async () => {
   await h.run('executeCapture()');
   assert.ok(h.toasts.some(t => t.message.startsWith('toastCanvasBlock')));
   assert.equal(h.elements.get('speed-indicator').textContent, 'finCors');
+  assert.equal(h.run('isCapturing'), false);
+});
+
+test('a browser-rejected canvas reports the requested size without leaving capture locked', async () => {
+  const h = harness({ rejectCanvas: true });
+  await h.run('executeCapture()');
+  assert.equal(h.encodes.length, 0);
+  assert.equal(h.downloads.length, 0);
+  assert.ok(h.toasts.some(t => /toastCanvasSize.*1444.*812/.test(t.message)));
   assert.equal(h.run('isCapturing'), false);
 });
