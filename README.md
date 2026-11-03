@@ -76,3 +76,9 @@ The app's old 16,384/32,768-pixel limits are removed when GPU safety is off, whi
 **This is not infinite canvas support.** Inputs must be finite, representable integers, and browser dimension/area limits, memory, file size and provider availability still apply. A single enormous image can fail or crash the tab. Requests rejected during canvas allocation are reported explicitly instead of being silently resized. Export beyond actual browser canvas limits would require a separate tiled/streaming output format, which is not implemented here.
 
 Validation: 41 automated tests pass, including shifted tile wrapping, Russian/Alaskan mainland placement, and uncapped 65,536×32,768 geometry in all three capture modes. A Chromium full-page check with mocked upstream images verified shifted 512×512 and 512×256 downloads and an actual 20,000×64 PNG download. The larger 65,536×32,768 canvas was **not** allocated or exported during testing.
+
+## Faster white-map exports
+
+White-map captures now render directly into one export canvas, including native equirectangular output. Dual PNG export reuses the same canvas sequentially. A bounded vector-path cache accelerates repeat captures without retaining large raster buffers; coastline loading is shared between preview and export. Original coastline detail, lake holes, world shifts, PNG/JPEG support and custom dimensions remain available.
+
+Local Chromium measurements showed **1.8–2.6× faster first render+PNG encoding** and **2.5–3.1× faster repeats** for tested 4K 50m/10m cases. Full-size export-canvas allocation drops from three buffers to one (67% less nominal RGBA storage, not a peak-RAM guarantee). Native equirectangular rendering removes the old bitmap-resampling distortion, so those pixels need not exactly match previous exports. See [implementation, measurements and validation](docs/white-map-performance.md).
