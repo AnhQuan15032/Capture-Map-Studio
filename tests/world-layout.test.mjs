@@ -23,10 +23,10 @@ function harness() {
     buildTileUrl: (key, z, x, y) => `${z}/${x}/${y}`,
   });
   vm.runInContext(`const TILE_SIZE = 256; let worldCenterLng = 11.5, safetyLimitOn = false;
-    let currentSourceKey = 'satellite_world', captureArea = 'world', currentRatio = '16:9', currentScale = 2;
+    let currentSourceKey = 'nasa_blue', captureArea = 'world', currentRatio = '16:9', currentScale = 2;
     let customResOn = false, customW = 3840, customH = 2160, isCapturing = false;
     const turboMode = true, MAX_TILES_TURBO = 999999, MAX_TILES = 999999, tileCache = new Map();
-    const TILE_SOURCES = { satellite_world: { maxZoom: 8 } };
+    const TILE_SOURCES = { nasa_blue: { maxZoom: 8 } };
     ${boundsCode}\n${enumerateCode}\n${viewCode}\n${sizeCode}`, context);
   return code => vm.runInContext(code, context);
 }

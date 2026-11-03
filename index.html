@@ -24,7 +24,6 @@
   <script src="https://cdn.jsdelivr.net/npm/d3-geo@3"></script>
 
   <!-- Preconnect: mở sẵn kết nối tới máy chủ tile để chụp nhanh hơn -->
-  <link rel="preconnect" href="https://tiles.maps.eox.at" crossorigin />
   <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
   <link rel="preconnect" href="https://gibs.earthdata.nasa.gov" crossorigin />
   <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin />
@@ -195,7 +194,7 @@
         <span class="w-2 h-2 rounded-full bg-cyan-400 rec-dot"></span>
         <div class="text-[11px] flex items-center gap-1.5">
           <i data-lucide="satellite" class="w-3.5 h-3.5 text-cyan-300"></i>
-          <span id="hud-source" class="font-bold text-cyan-300">Satellite World Map</span>
+          <span id="hud-source" class="font-bold text-cyan-300">Esri World Imagery</span>
           <span class="text-slate-400 font-mono" id="hud-coords">16.00°, 106.00°</span>
         </div>
       </div>
@@ -375,7 +374,6 @@
           <span class="text-[10px] text-slate-500 font-mono" id="provider-count">10</span>
         </div>
         <input id="provider-search" data-i18n-ph="srcSearchPh" placeholder="Tìm provider..." class="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-400/50 transition" />
-        <div id="pinned-provider-buttons" aria-label="Pinned world maps" class="grid grid-cols-1 gap-2"></div>
         <div id="provider-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-0.5"></div>
         <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
           <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
@@ -593,7 +591,7 @@
     let currentRatio = '16:9';
     let currentScale = 2;
     let currentFormat = 'jpeg';
-    let currentSourceKey = 'satellite_world';
+    let currentSourceKey = 'esri';
     let useProxy = true;
     let isCapturing = false;
 
@@ -618,8 +616,6 @@
         warnUnsafe: '<b>Không giới hạn kích thước bởi app:</b> trình duyệt và RAM vẫn có giới hạn thực tế. Ảnh quá lớn có thể không xuất được hoặc làm sập tab; số pixel không thể vô hạn.',
         outSize: 'Kích thước ảnh xuất:', outMp: 'Tổng số megapixel:', outTiles: 'Số mảnh tile cần tải:',
         outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'Không giới hạn bởi app · tùy trình duyệt/RAM',
-        srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'NASA Blue Marble · địa hình & đáy biển · zoom gốc 8',
-        srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · biển xanh · mức tile tối đa 8',
         srcTitle: 'Nguồn ảnh vệ tinh', srcSubEsri: 'CORS OK — xuất ổn định 100%',
         srcSubProxy: 'Proxy CORS + prefetch nhẹ', srcSubOsm: 'Bản đồ giao thông',
         srcSubFirefly: 'Esri tông điện ảnh / night style', srcSubUsgs: 'USGS ảnh vệ tinh công khai', srcSubUsgsTopo: 'USGS ảnh vệ tinh + topo / nhãn',
@@ -706,8 +702,6 @@
         warnUnsafe: '<b>No app dimension cap:</b> browser canvas and RAM limits still apply. Huge images may fail or crash the tab; pixel counts cannot be infinite.',
         outSize: 'Output size:', outMp: 'Total megapixels:', outTiles: 'Tiles to fetch:',
         outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'No app cap · browser/RAM limits',
-        srcPinned: 'Pinned', srcSubSatelliteWorld: 'NASA Blue Marble · shaded relief & bathymetry · native zoom 8',
-        srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · blue oceans · tile zoom capped at 8',
         srcTitle: 'Satellite imagery source', srcSubEsri: 'CORS OK — 100% stable export',
         srcSubProxy: 'CORS proxy + light prefetch', srcSubOsm: 'Street map',
         srcSubFirefly: 'Esri cinematic / firefly style', srcSubUsgs: 'Public USGS satellite imagery', srcSubUsgsTopo: 'USGS imagery + topo / labels',
@@ -877,10 +871,6 @@
     })();
 
     const TILE_SOURCES = {
-      // Use the ocean-inclusive variants: land-only relief leaves white oceans.
-      satellite_world: { name: "Satellite World Map", pinned: true, attribution: '<a href="https://earthobservatory.nasa.gov/features/BlueMarble" target="_blank" rel="noopener">NASA Blue Marble</a>, imagery via <a href="https://www.earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs" target="_blank" rel="noopener">NASA GIBS</a>', uiIcon: "satellite", noteKey: "srcSubSatelliteWorld", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//EPSG3857_500m/{z}/{y}/{x}.jpeg", maxZoom: 8, corsSafe: true },
-      // Keep this world-relief preset at z8; EOX can render more local detail beyond it.
-      natural_earth: { name: "Natural Earth / Physical World Map", pinned: true, attribution: '<a href="https://maps.eox.at/" target="_blank" rel="noopener">Terrain</a> { Data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors and <a href="https://maps.eox.at/#data" target="_blank" rel="noopener">others (Natural Earth)</a>, Rendering &copy; <a href="https://eox.at/" target="_blank" rel="noopener">EOX</a> }', uiIcon: "mountain", noteKey: "srcSubNaturalEarth", category: 'ref', url: "https://tiles.maps.eox.at/wmts/1.0.0/terrain_3857/default/g/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
       esri: { name: "Esri World Imagery", attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community', uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_firefly: { name: "Esri Firefly", uiIcon: "sparkles", noteKey: "srcSubFirefly", category: 'sat', url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_topo: { name: "Esri Topo", uiIcon: "map", noteKey: "srcSubEsriTopo", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
@@ -937,8 +927,7 @@
 
     function renderProviderButtons() {
       const wrap = $('provider-buttons');
-      const pinnedWrap = $('pinned-provider-buttons');
-      if (!wrap || !pinnedWrap) return;
+      if (!wrap) return;
       const q = providerSearch.trim().toLowerCase();
       const list = Object.entries(TILE_SOURCES).filter(([, src]) => {
         if (!q) return true;
@@ -948,17 +937,13 @@
       const renderButton = ([key, src]) => `
         <button type="button" data-source="${key}" aria-pressed="${key === currentSourceKey}" class="src-btn ${key === currentSourceKey ? 'active bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'} p-2 rounded-xl border text-left text-xs font-semibold transition">
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="${src.pinned ? '' : 'truncate'}">${src.name}</span></div>
-            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.pinned ? `<span class="inline-flex items-center gap-1"><i data-lucide="pin" class="w-3 h-3"></i>${t('srcPinned')}</span>` : (src.category || 'map')}</span>
+            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="truncate">${src.name}</span></div>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.category || 'map'}</span>
           </div>
           <div class="text-[10px] opacity-70 font-normal mt-0.5" data-i18n="${src.noteKey || 'srcSubProxy'}">${t(src.noteKey || 'srcSubProxy')}</div>
         </button>
       `;
-      const pinned = list.filter(([, src]) => src.pinned);
-      const others = list.filter(([, src]) => !src.pinned);
-      pinnedWrap.innerHTML = pinned.map(renderButton).join('');
-      pinnedWrap.style.display = pinned.length ? '' : 'none';
-      wrap.innerHTML = others.map(renderButton).join('') || (list.length ? '' : `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`);
+      wrap.innerHTML = list.map(renderButton).join('') || `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`;
       $('provider-count').textContent = providerCountLabel(list.length);
       document.querySelectorAll('.src-btn').forEach(btn => {
         btn.addEventListener('click', () => {
