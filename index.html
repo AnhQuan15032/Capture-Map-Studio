@@ -24,6 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/d3-geo@3"></script>
 
   <!-- Preconnect: mở sẵn kết nối tới máy chủ tile để chụp nhanh hơn -->
+  <link rel="preconnect" href="https://tiles.maps.eox.at" crossorigin />
   <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
   <link rel="preconnect" href="https://gibs.earthdata.nasa.gov" crossorigin />
   <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin />
@@ -194,7 +195,7 @@
         <span class="w-2 h-2 rounded-full bg-cyan-400 rec-dot"></span>
         <div class="text-[11px] flex items-center gap-1.5">
           <i data-lucide="satellite" class="w-3.5 h-3.5 text-cyan-300"></i>
-          <span id="hud-source" class="font-bold text-cyan-300">Esri Clarity</span>
+          <span id="hud-source" class="font-bold text-cyan-300">Satellite World Map</span>
           <span class="text-slate-400 font-mono" id="hud-coords">16.00°, 106.00°</span>
         </div>
       </div>
@@ -307,9 +308,9 @@
             <input type="checkbox" id="custom-res-check" class="w-4 h-4 accent-cyan-400 cursor-pointer" />
           </label>
           <div id="custom-res-row" class="hidden items-center gap-1.5">
-            <input type="number" id="custom-w" min="64" max="16384" step="2" value="3840" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
+            <input type="number" id="custom-w" min="64" step="2" value="3840" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
             <span class="text-slate-500 text-xs font-mono shrink-0">×</span>
-            <input type="number" id="custom-h" min="64" max="16384" step="2" value="2160" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
+            <input type="number" id="custom-h" min="64" step="2" value="2160" class="w-full bg-slate-900 border border-cyan-400/40 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-300 transition" />
           </div>
           <div id="custom-presets" class="hidden flex-wrap gap-1">
             <button data-cw="1920" data-ch="1080" class="custom-preset px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:text-cyan-200 transition">1080p</button>
@@ -327,7 +328,7 @@
             <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> <span data-i18n="safetyGpu">Giới hạn an toàn GPU</span>
             <span class="text-slate-500 text-[10px] font-mono" data-i18n="safetyHint">chống sập tab</span>
           </span>
-          <input type="checkbox" id="safety-check" checked class="w-4 h-4 accent-emerald-400 cursor-pointer" />
+          <input type="checkbox" id="safety-check" class="w-4 h-4 accent-emerald-400 cursor-pointer" />
         </label>
 
         <!-- Cảnh báo nếu scale cao hoặc tắt giới hạn an toàn -->
@@ -374,6 +375,7 @@
           <span class="text-[10px] text-slate-500 font-mono" id="provider-count">10</span>
         </div>
         <input id="provider-search" data-i18n-ph="srcSearchPh" placeholder="Tìm provider..." class="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-400/50 transition" />
+        <div id="pinned-provider-buttons" aria-label="Pinned world maps" class="grid grid-cols-1 gap-2"></div>
         <div id="provider-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-0.5"></div>
         <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
           <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
@@ -446,6 +448,12 @@
             <i data-lucide="map" class="w-4 h-4"></i> <span data-i18n="areaEqui">Toàn cầu 2:1<br>(Không giãn)</span>
           </button>
         </div>
+        <label class="flex items-center justify-between gap-2 text-xs text-slate-300">
+          <span data-i18n="worldCenter">Kinh tuyến giữa (toàn cầu)</span>
+          <input id="world-center" type="number" min="-180" max="180" step="0.1" value="11.5" class="w-24 bg-slate-900 border border-cyan-400/30 rounded-lg px-2 py-1.5 text-xs font-mono text-cyan-200" />
+        </label>
+        <p class="text-[10px] text-slate-500" data-i18n="worldSizeHint">Kích thước tùy chỉnh áp dụng cả cho toàn cầu. Chọn W=H cho ảnh vuông, hoặc W=2H cho ảnh toàn cầu 2:1.</p>
+        <p class="text-[10px] text-slate-500" data-i18n="worldCenterHint">11,5°Đ: mép bản đồ ở eo biển Bering, giữ liền phần đất Nga. Chỉ áp dụng cho xuất toàn cầu.</p>
         <p class="text-[10px] text-slate-500 leading-tight flex gap-1.5">
           <i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i>
           <span id="area-note" data-i18n-html="areaWorldNote"><b>Toàn cầu vuông (Web Mercator):</b> xuất trọn thế giới vuông ±85°. Scale 16× = 4096px. Bị kéo giãn mạnh ở vùng cực (phù hợp với bản đồ web).</span>
@@ -585,7 +593,7 @@
     let currentRatio = '16:9';
     let currentScale = 2;
     let currentFormat = 'jpeg';
-    let currentSourceKey = 'esri';
+    let currentSourceKey = 'satellite_world';
     let useProxy = true;
     let isCapturing = false;
 
@@ -607,9 +615,11 @@
         toastCustomOff: 'Đã tắt kích thước tùy chỉnh — quay về hệ số Scale.',
         safetyGpu: 'Giới hạn an toàn GPU', safetyHint: 'chống sập tab',
         warnSuper: '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.',
-        warnUnsafe: '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.',
+        warnUnsafe: '<b>Không giới hạn kích thước bởi app:</b> trình duyệt và RAM vẫn có giới hạn thực tế. Ảnh quá lớn có thể không xuất được hoặc làm sập tab; số pixel không thể vô hạn.',
         outSize: 'Kích thước ảnh xuất:', outMp: 'Tổng số megapixel:', outTiles: 'Số mảnh tile cần tải:',
-        outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'TẮT — rủi ro cao',
+        outCache: 'Bộ đệm tile (RAM):', outCap: 'Trần an toàn thiết bị:', capOff: 'Không giới hạn bởi app · tùy trình duyệt/RAM',
+        srcPinned: 'Đã ghim', srcSubSatelliteWorld: 'NASA Blue Marble · địa hình & đáy biển · zoom gốc 8',
+        srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · biển xanh · mức tile tối đa 8',
         srcTitle: 'Nguồn ảnh vệ tinh', srcSubEsri: 'CORS OK — xuất ổn định 100%',
         srcSubProxy: 'Proxy CORS + prefetch nhẹ', srcSubOsm: 'Bản đồ giao thông',
         srcSubFirefly: 'Esri tông điện ảnh / night style', srcSubUsgs: 'USGS ảnh vệ tinh công khai', srcSubUsgsTopo: 'USGS ảnh vệ tinh + topo / nhãn',
@@ -622,6 +632,8 @@
         toastCustomProviderApplied: '<b>Đã thêm provider tùy chỉnh:</b> {name}', toastCustomProviderInvalid: 'URL provider không hợp lệ. Cần chứa ít nhất <code>{z}</code>, <code>{x}</code>, <code>{y}</code>.',
         proxyToggle: 'Proxy CORS cho nguồn bị chặn',
         ratioTitle: 'Tỉ lệ khung hình', flip: 'Đảo chiều', full: 'Toàn màn', thirds: 'Lưới căn bố cục 1/3',
+        worldSizeHint: 'Kích thước tùy chỉnh áp dụng cả cho toàn cầu. Chọn W=H cho ảnh vuông, hoặc W=2H cho ảnh toàn cầu 2:1.',
+        worldCenter: 'Kinh tuyến giữa (toàn cầu)', worldCenterHint: '11,5°Đ: mép bản đồ ở eo biển Bering, giữ liền phần đất Nga. Chỉ áp dụng cho xuất toàn cầu.',
         areaTitle: 'Vùng chụp', areaView: 'Khung ngắm', areaWorld: 'Toàn cầu vuông', areaEqui: 'Toàn cầu 2:1<br>(Không giãn)',
         areaWorldNote: '<b>Toàn cầu vuông (Web Mercator):</b> xuất trọn thế giới vuông ±85°. Phép chiếu chuẩn của web, bị kéo giãn mạnh ở vùng cực.',
         areaEquiNote: '<b>Toàn cầu phẳng 2:1 (Equirectangular):</b> xuất ảnh tỷ lệ chuẩn 2:1 (±90°). Giữ đúng tỷ lệ thực ở các cực, lý tưởng làm texture 3D (Blender/Unity). Rất nặng!',
@@ -648,29 +660,31 @@
         stDualInit: 'Xuất 2 lớp: khởi tạo...', stDualTiles: '2 lớp: {d}/{tot} tiles...', stDualSplit: 'Đang tách Biển / Đất liền...',
         stDone: 'Xong trong {d}s — {m} MB',
         stMaskLoad: 'Đang tải bờ biển...', stMaskErr: 'Lỗi tải dữ liệu',
-        finCors: 'Lỗi CORS', finMem: 'Lỗi bộ nhớ', finProxy: 'Proxy quá tải — bấm chụp lại',
+        finCors: 'Lỗi CORS', finMem: 'Lỗi bộ nhớ', finExport: 'Lỗi xuất ảnh', finProxy: 'Proxy quá tải — bấm chụp lại',
         toastProxyWarn: 'Nguồn <b>{name}</b> chặn CORS. Hãy bật "Proxy CORS" để xuất được ảnh.',
         toastTurboOn: '<b>Turbo bật:</b> tối đa ~320 tiles/lần chụp, nhanh hơn khoảng 4 lần.',
         toastTurboOff: '<b>Turbo tắt:</b> chế độ Max Detail — nhiều tile hơn, sắc nét tối đa.',
-        toastSafetyOff: '<b>Đã tắt giới hạn an toàn GPU.</b> Kích thước canvas giờ theo đúng Scale (tối đa 16384px) — vượt RAM thiết bị sẽ sập tab.',
+        toastSafetyOff: '<b>Đã tắt giới hạn kích thước của app.</b> Xuất đúng kích thước yêu cầu; trình duyệt/RAM vẫn có thể từ chối ảnh quá lớn.',
         toastSafetyOn: 'Đã bật lại giới hạn an toàn GPU theo phần cứng thiết bị.',
         toastPng: 'Đã chuyển sang <b>PNG</b> để giữ vùng trong suốt (JPEG không hỗ trợ alpha).',
         toast10m: 'Bờ biển 10m nặng ~4MB, lần tải đầu có thể mất vài giây.',
         toastWorld: 'Chế độ <b>Toàn cầu</b>: độ phân giải do Scale quyết định (16× = 4096px, 32× = 8192px desktop).',
         toastRuntime: 'Lỗi runtime: {m}',
-        toastProxyDead: '<b>Cả 3 proxy CORS đều không phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri Clarity.',
+        toastProxyDead: '<b>Không có proxy tile nào phản hồi.</b> Hãy thử lại sau hoặc chuyển sang Esri World Imagery.',
         toastTooManyFail: '<b>{f}/{tot} tiles thất bại</b> — proxy CORS đang quá tải nên đã hủy xuất. Bấm chụp lại: engine sẽ tự đo & đổi sang proxy khác.',
         toastSomeFail: '{f}/{tot} tiles tải thất bại (mạng yếu hoặc nguồn giới hạn). Ảnh có thể có vệt trống.',
         toastExportOk: '<b>Xuất ảnh thành công!</b> {w}×{h}px • {m} MB • {d}s',
-        toastNoBlob: 'Không tạo được ảnh từ Canvas (thiết bị quá tải). Hãy giảm hệ số Scale.',
-        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri Clarity hoặc bật Proxy CORS.',
+        toastNoBlob: 'Bộ mã hóa Canvas không trả về ảnh. Hãy thử định dạng PNG hoặc chụp lại.',
+        toastExportError: 'Không xuất được ảnh: {m}',
+        toastCanvasSize: 'Trình duyệt từ chối Canvas {w} × {h}px. Đây là giới hạn thực tế của trình duyệt/RAM, không phải giới hạn kích thước của app.',
+        toastCanvasBlock: '<b>Canvas bị chặn bảo mật.</b> Hãy dùng nguồn Esri World Imagery hoặc bật Proxy CORS.',
         toastMapReady: 'Bản đồ chưa sẵn sàng, thử lại sau giây lát.',
         toastFlipInfo: 'Chỉ hỗ trợ đảo chiều nhanh giữa 16:9 và 9:16.',
         toastMaskNoData: 'Không tải được dữ liệu bờ biển — ảnh xuất giữ nguyên toàn vùng.',
         toastMaskNoD3: 'Thiếu thư viện d3-geo — bỏ qua bộ lọc vùng cho lần chụp này.',
         toastDualNoD3: 'Thiếu thư viện d3-geo — không tách được 2 lớp.',
         toastDualNoData: 'Không tải được dữ liệu bờ biển.',
-        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Esri Clarity</b>.',
+        toastDualCors: 'Nguồn này chặn CORS nên không tách được 2 lớp PNG. Hãy dùng <b>Esri World Imagery</b>.',
         toastDualDone: '<b>Đã xuất 2 lớp khớp pixel!</b> Chồng <code>-{land}.png</code> lên <code>-{ocean}.png</code> trong editor — không hở viền.',
         toastPreviewFail: 'Không hiển thị được lớp xem trước bờ biển.',
         fileLand: 'datlien', fileOcean: 'bien', fileMap: 'ban-do', fileBlank: 'ban-do-trang',
@@ -689,9 +703,11 @@
         toastCustomOff: 'Custom resolution off — back to the Scale factor.',
         safetyGpu: 'GPU safety limit', safetyHint: 'anti-crash',
         warnSuper: '<b>Ultra-sharp mode:</b> the adaptive GPU limiter clamps canvas size to your device hardware to prevent tab crashes.',
-        warnUnsafe: '<b>Safety limit OFF:</b> the canvas follows Scale exactly, capped only at the browser ceiling of 16384px. Huge images may crash the tab — at your own risk.',
+        warnUnsafe: '<b>No app dimension cap:</b> browser canvas and RAM limits still apply. Huge images may fail or crash the tab; pixel counts cannot be infinite.',
         outSize: 'Output size:', outMp: 'Total megapixels:', outTiles: 'Tiles to fetch:',
-        outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'OFF — high risk',
+        outCache: 'Tile cache (RAM):', outCap: 'Device safety cap:', capOff: 'No app cap · browser/RAM limits',
+        srcPinned: 'Pinned', srcSubSatelliteWorld: 'NASA Blue Marble · shaded relief & bathymetry · native zoom 8',
+        srcSubNaturalEarth: 'EOX Terrain · Natural Earth & OSM · blue oceans · tile zoom capped at 8',
         srcTitle: 'Satellite imagery source', srcSubEsri: 'CORS OK — 100% stable export',
         srcSubProxy: 'CORS proxy + light prefetch', srcSubOsm: 'Street map',
         srcSubFirefly: 'Esri cinematic / firefly style', srcSubUsgs: 'Public USGS satellite imagery', srcSubUsgsTopo: 'USGS imagery + topo / labels',
@@ -704,6 +720,8 @@
         toastCustomProviderApplied: '<b>Custom provider added:</b> {name}', toastCustomProviderInvalid: 'Invalid provider URL. It must include at least <code>{z}</code>, <code>{x}</code>, and <code>{y}</code>.',
         proxyToggle: 'CORS proxy for blocked sources',
         ratioTitle: 'Aspect ratio', flip: 'Flip', full: 'Full', thirds: 'Rule-of-thirds grid',
+        worldSizeHint: 'Custom dimensions apply to full-world exports too. Use W=H for square output or W=2H for a 2:1 world image.',
+        worldCenter: 'World center longitude', worldCenterHint: '11.5°E places the seam in the Bering Strait, keeping mainland Russia together. Full-world exports only.',
         areaTitle: 'Capture area', areaView: 'Viewfinder', areaWorld: 'Global Square', areaEqui: 'Global 2:1<br>(Flat)',
         areaWorldNote: '<b>Global Square (Web Mercator):</b> exports the ±85° world. Standard web projection, heavily stretched at the poles.',
         areaEquiNote: '<b>Global Flat 2:1 (Equirectangular):</b> exports true 2:1 ratio (±90°). No polar stretching, ideal for 3D globe textures (Blender/Unity). Very heavy to process!',
@@ -730,29 +748,31 @@
         stDualInit: 'Dual layers: init...', stDualTiles: '2 layers: {d}/{tot} tiles...', stDualSplit: 'Splitting Ocean / Land...',
         stDone: 'Done in {d}s — {m} MB',
         stMaskLoad: 'Loading coastlines...', stMaskErr: 'Data load error',
-        finCors: 'CORS error', finMem: 'Memory error', finProxy: 'Proxy overloaded — tap capture again',
+        finCors: 'CORS error', finMem: 'Memory error', finExport: 'Export error', finProxy: 'Proxy overloaded — tap capture again',
         toastProxyWarn: 'Source <b>{name}</b> blocks CORS. Enable "CORS proxy" to export images.',
         toastTurboOn: '<b>Turbo on:</b> max ~320 tiles per capture, roughly 4× faster.',
         toastTurboOff: '<b>Turbo off:</b> Max Detail mode — more tiles, maximum sharpness.',
-        toastSafetyOff: '<b>GPU safety limit disabled.</b> Canvas now follows Scale exactly (up to 16384px) — exceeding device RAM may crash the tab.',
+        toastSafetyOff: '<b>App dimension caps disabled.</b> Requested dimensions are preserved; the browser/RAM may still reject very large images.',
         toastSafetyOn: 'GPU safety limit re-enabled for this device.',
         toastPng: 'Switched to <b>PNG</b> to preserve transparency (JPEG has no alpha).',
         toast10m: '10m coastlines are ~4MB; first load may take a few seconds.',
         toastWorld: '<b>Global mode:</b> resolution is set by Scale (16× = 4096px, 32× = 8192px on desktop).',
         toastRuntime: 'Runtime error: {m}',
-        toastProxyDead: '<b>All 3 CORS proxies unresponsive.</b> Try again later or switch to Esri Clarity.',
+        toastProxyDead: '<b>No tile relay is responding.</b> Try again later or switch to Esri World Imagery.',
         toastTooManyFail: '<b>{f}/{tot} tiles failed</b> — CORS proxy overloaded, export cancelled. Capture again: the engine will re-probe and switch proxies.',
         toastSomeFail: '{f}/{tot} tiles failed (weak network or source limit). Image may have blank streaks.',
         toastExportOk: '<b>Export successful!</b> {w}×{h}px • {m} MB • {d}s',
-        toastNoBlob: 'Could not encode canvas (device overloaded). Lower the Scale factor.',
-        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri Clarity or enable the CORS proxy.',
+        toastNoBlob: 'The canvas encoder returned no image. Try PNG or capture again.',
+        toastExportError: 'Image export failed: {m}',
+        toastCanvasSize: 'The browser rejected a {w} × {h}px canvas. Browser/RAM limits still apply even without app dimension caps.',
+        toastCanvasBlock: '<b>Canvas blocked by security policy.</b> Use Esri World Imagery or enable the CORS proxy.',
         toastMapReady: 'Map not ready yet, try again in a moment.',
         toastFlipInfo: 'Quick flip only works between 16:9 and 9:16.',
         toastMaskNoData: 'Could not load coastline data — export keeps the full region.',
         toastMaskNoD3: 'Missing d3-geo library — region filter skipped for this capture.',
         toastDualNoD3: 'Missing d3-geo library — cannot split 2 layers.',
         toastDualNoData: 'Could not load coastline data.',
-        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Esri Clarity</b>.',
+        toastDualCors: 'This source blocks CORS, cannot split 2 PNG layers. Use <b>Esri World Imagery</b>.',
         toastDualDone: '<b>2 pixel-matched layers exported!</b> Stack <code>-{land}.png</code> over <code>-{ocean}.png</code> in your editor — zero seams.',
         toastPreviewFail: 'Could not render the coastline preview layer.',
         fileLand: 'land', fileOcean: 'ocean', fileMap: 'map', fileBlank: 'white-map',
@@ -810,7 +830,8 @@
 
     // Bộ đệm tile kiểu LRU → chụp lặp cùng vùng = tức thì
     let turboMode = true;
-    let safetyLimitOn = true; // tắt = canvas chỉ bị chặn bởi trần trình duyệt (rủi ro sập tab)
+    let safetyLimitOn = false; // Optional app safety caps; browser/RAM limits always apply.
+    let worldCenterLng = 11.5; // Seam at 168.5°W, in the Bering Strait, not through mainland Russia.
     let customResOn = false;  // kích thước pixel chính xác, đè hệ số Scale
     let customW = 3840, customH = 2160;
 
@@ -856,7 +877,11 @@
     })();
 
     const TILE_SOURCES = {
-      esri: { name: "Esri Clarity", uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
+      // Use the ocean-inclusive variants: land-only relief leaves white oceans.
+      satellite_world: { name: "Satellite World Map", pinned: true, attribution: '<a href="https://earthobservatory.nasa.gov/features/BlueMarble" target="_blank" rel="noopener">NASA Blue Marble</a>, imagery via <a href="https://www.earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs" target="_blank" rel="noopener">NASA GIBS</a>', uiIcon: "satellite", noteKey: "srcSubSatelliteWorld", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//EPSG3857_500m/{z}/{y}/{x}.jpeg", maxZoom: 8, corsSafe: true },
+      // Keep this world-relief preset at z8; EOX can render more local detail beyond it.
+      natural_earth: { name: "Natural Earth / Physical World Map", pinned: true, attribution: '<a href="https://maps.eox.at/" target="_blank" rel="noopener">Terrain</a> { Data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors and <a href="https://maps.eox.at/#data" target="_blank" rel="noopener">others (Natural Earth)</a>, Rendering &copy; <a href="https://eox.at/" target="_blank" rel="noopener">EOX</a> }', uiIcon: "mountain", noteKey: "srcSubNaturalEarth", category: 'ref', url: "https://tiles.maps.eox.at/wmts/1.0.0/terrain_3857/default/g/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
+      esri: { name: "Esri World Imagery", attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community', uiIcon: "layers", noteKey: "srcSubEsri", category: 'sat', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_firefly: { name: "Esri Firefly", uiIcon: "sparkles", noteKey: "srcSubFirefly", category: 'sat', url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_topo: { name: "Esri Topo", uiIcon: "map", noteKey: "srcSubEsriTopo", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       esri_street: { name: "Esri Street", uiIcon: "route", noteKey: "srcSubEsriStreet", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
@@ -865,14 +890,14 @@
       esri_light: { name: "Esri Light Gray", uiIcon: "sun-medium", noteKey: "srcSubEsriLight", category: 'ref', url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", maxZoom: 16, corsSafe: true },
       usgs: { name: "USGS Imagery", uiIcon: "mountain-snow", noteKey: "srcSubUsgs", category: 'sat', url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
       usgs_topo: { name: "USGS Imagery Topo", uiIcon: "map", noteKey: "srcSubUsgsTopo", category: 'hybrid', url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}", maxZoom: 22, corsSafe: true },
-      nasa_blue: { name: "NASA Blue Marble", uiIcon: "globe-2", noteKey: "srcSubNasaBlue", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
+      nasa_blue: { name: "NASA Blue Marble", uiIcon: "globe-2", noteKey: "srcSubNasaBlue", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default//EPSG3857_500m/{z}/{y}/{x}.jpeg", maxZoom: 8, corsSafe: true },
       nasa_viirs: { name: "NASA VIIRS True Color", uiIcon: "orbit", noteKey: "srcSubNasaTerra", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", time: gibsRecentDate, maxZoom: 9, corsSafe: true },
       nasa_night: { name: "NASA City Lights", uiIcon: "moon-star", noteKey: "srcSubNasaNight", category: 'sat', url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default//GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg", maxZoom: 8, corsSafe: true },
       bing: { name: "Bing Satellite", uiIcon: "globe", noteKey: "srcSubProxy", category: 'sat', url: "https://ecn.t{s}.tiles.virtualearth.net/tiles/a{q}.jpeg?g=14364&n=z", maxZoom: 22, subdomains: ["0", "1", "2", "3"], scheme: "bing-quadkey", corsSafe: false },
-      google: { name: "Google Hybrid", uiIcon: "satellite", noteKey: "srcSubProxy", category: 'hybrid', url: "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_sat: { name: "Google Satellite", uiIcon: "image", noteKey: "srcSubGoogleSat", category: 'sat', url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_road: { name: "Google Road", uiIcon: "map", noteKey: "srcSubGoogleRoad", category: 'ref', url: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
-      google_terrain: { name: "Google Terrain", uiIcon: "mountain", noteKey: "srcSubGoogleTerrain", category: 'ref', url: "https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google: { name: "Google Hybrid", uiIcon: "satellite", noteKey: "srcSubProxy", category: 'hybrid', url: "https://mt{s}.google.com/vt?lyrs=y&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_sat: { name: "Google Satellite", uiIcon: "image", noteKey: "srcSubGoogleSat", category: 'sat', url: "https://mt{s}.google.com/vt?lyrs=s&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_road: { name: "Google Road", uiIcon: "map", noteKey: "srcSubGoogleRoad", category: 'ref', url: "https://mt{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
+      google_terrain: { name: "Google Terrain", uiIcon: "mountain", noteKey: "srcSubGoogleTerrain", category: 'ref', url: "https://mt{s}.google.com/vt?lyrs=p&x={x}&y={y}&z={z}", maxZoom: 22, subdomains: ["0", "1", "2", "3"], corsSafe: false },
       carto_dark: { name: "CARTO Dark", uiIcon: "moon", noteKey: "srcSubCartoDark", category: 'ref', url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", maxZoom: 20, corsSafe: true },
       carto_light: { name: "CARTO Light", uiIcon: "sun", noteKey: "srcSubCartoLight", category: 'ref', url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", maxZoom: 20, corsSafe: true },
       opentopo: { name: "OpenTopoMap", uiIcon: "map-pinned", noteKey: "srcSubOpenTopo", category: 'ref', url: "https://tile.opentopomap.org/{z}/{x}/{y}.png", maxZoom: 17, corsSafe: true },
@@ -912,26 +937,33 @@
 
     function renderProviderButtons() {
       const wrap = $('provider-buttons');
-      if (!wrap) return;
+      const pinnedWrap = $('pinned-provider-buttons');
+      if (!wrap || !pinnedWrap) return;
       const q = providerSearch.trim().toLowerCase();
       const list = Object.entries(TILE_SOURCES).filter(([, src]) => {
         if (!q) return true;
         const hay = `${src.name} ${t(src.noteKey || 'srcSubProxy')} ${src.category || ''}`.toLowerCase();
         return hay.includes(q);
       });
-      wrap.innerHTML = list.map(([key, src]) => `
-        <button data-source="${key}" class="src-btn ${key === currentSourceKey ? 'active bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'} p-2 rounded-xl border text-left text-xs font-semibold transition">
+      const renderButton = ([key, src]) => `
+        <button type="button" data-source="${key}" aria-pressed="${key === currentSourceKey}" class="src-btn ${key === currentSourceKey ? 'active bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'} p-2 rounded-xl border text-left text-xs font-semibold transition">
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="truncate">${src.name}</span></div>
-            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.category || 'map'}</span>
+            <div class="flex items-center gap-1.5 min-w-0"><i data-lucide="${src.uiIcon || 'layers'}" class="w-3.5 h-3.5 shrink-0"></i><span class="${src.pinned ? '' : 'truncate'}">${src.name}</span></div>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/8 border border-white/10 uppercase shrink-0">${src.pinned ? `<span class="inline-flex items-center gap-1"><i data-lucide="pin" class="w-3 h-3"></i>${t('srcPinned')}</span>` : (src.category || 'map')}</span>
           </div>
           <div class="text-[10px] opacity-70 font-normal mt-0.5" data-i18n="${src.noteKey || 'srcSubProxy'}">${t(src.noteKey || 'srcSubProxy')}</div>
         </button>
-      `).join('') || `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`;
+      `;
+      const pinned = list.filter(([, src]) => src.pinned);
+      const others = list.filter(([, src]) => !src.pinned);
+      pinnedWrap.innerHTML = pinned.map(renderButton).join('');
+      pinnedWrap.style.display = pinned.length ? '' : 'none';
+      wrap.innerHTML = others.map(renderButton).join('') || (list.length ? '' : `<div class="col-span-full text-center py-4 text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">No provider</div>`);
       $('provider-count').textContent = providerCountLabel(list.length);
       document.querySelectorAll('.src-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           markActive([...document.querySelectorAll('.src-btn')], 'data-source', btn.getAttribute('data-source'));
+          document.querySelectorAll('.src-btn').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
           currentSourceKey = btn.getAttribute('data-source');
           applyTileLayer(currentSourceKey);
           warmupConnection(currentSourceKey);
@@ -953,7 +985,7 @@
         maxZoom: 22,                    // Leaflet cho phép zoom tới 22
         maxNativeZoom: src.maxZoom,     // nhưng tile gốc tối đa theo nguồn — vượt sẽ upscale
         subdomains: src.subdomains || [],
-        attribution: src.name + " | Satellite Studio",
+        attribution: (src.attribution || src.name) + " | Satellite Studio",
         time: src.time || ''
       };
 
@@ -970,7 +1002,9 @@
 
       currentTileLayer.addTo(map);
       $('hud-source').textContent = src.name;
-      $('provider-count').textContent = providerCountLabel();
+      $('provider-count').textContent = providerCountLabel(Object.values(TILE_SOURCES).filter(src =>
+        `${src.name} ${t(src.noteKey || 'srcSubProxy')} ${src.category || ''}`.toLowerCase().includes(providerSearch.trim().toLowerCase())
+      ).length);
     }
 
     /* ============================================================
@@ -1022,6 +1056,12 @@
       return offs;
     }
 
+    function worldPixelBounds(srcZoom) {
+      const size = TILE_SIZE * Math.pow(2, srcZoom);
+      const minPixX = size * worldCenterLng / 360;
+      return { minPixX, maxPixX: minPixX + size, minPixY: 0, maxPixY: size };
+    }
+
     /** Số tile bao phủ khung hình ở một mức zoom nguồn (hàng ngang có thể > 2^z khi vắt rìa) */
     function countTiles(x0, y0, x1, y1, srcZoom) {
       const b = pixelBoundsAt(x0, y0, x1, y1, srcZoom);
@@ -1035,10 +1075,7 @@
     /** Trần canvas thích ứng theo phần cứng / hệ điều hành */
     function getCanvasCaps() {
       if (!safetyLimitOn) {
-        // Trần TỐI ĐA mà Chrome/Safari cho phép (≈65536px/edge trên desktop mạnh, ~32768px trên mobile)
-        const isMob = window.innerWidth < 1024 || /Mobi|Android/i.test(navigator.userAgent);
-        const d = isMob ? 16384 : 32768;
-        return { maxArea: d * d, maxDim: d, label: t('capOff') };
+        return { maxArea: Infinity, maxDim: Infinity, label: t('capOff') };
       }
       const ua = navigator.userAgent;
       const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1084,19 +1121,19 @@
         vfBox.style.display = 'none';
         worldBadge.classList.remove('hidden');
 
-        // Tính zoom nguồn giống nhau
-        const zDim = Math.floor(Math.log2(caps.maxDim / 256));
-        const zArea = Math.floor(Math.log2(Math.sqrt(caps.maxArea) / 256));
-        let srcZoom = Math.max(0, Math.min(Math.round(Math.log2(currentScale)), zDim, zArea));
-        const dim = Math.min(caps.maxDim, TILE_SIZE * Math.pow(2, srcZoom));
-        
-        let outW = dim, outH = dim;
-        if (captureArea === 'equi') {
-          outH = Math.floor(dim / 2); // Equirectangular luôn là 2:1
-        }
-        const totalTiles = Math.pow(4, srcZoom);
+        let outW = useCustom ? customW : TILE_SIZE * Math.pow(2, Math.max(0, Math.round(Math.log2(currentScale))));
+        let outH = useCustom ? customH : (captureArea === 'equi' ? Math.floor(outW / 2) : outW);
+        const k = Math.min(1, caps.maxDim / outW, caps.maxDim / outH, Math.sqrt(caps.maxArea / (outW * outH)));
+        const clamped = k < 1;
+        if (clamped) { outW = Math.max(1, Math.floor(outW * k)); outH = Math.max(1, Math.floor(outH * k)); }
+        // Output pixels and source detail are separate: don't request nonexistent
+        // tile levels when a low-resolution provider is upscaled to a large image.
+        const srcZoom = Math.min(TILE_SOURCES[currentSourceKey].maxZoom, Math.max(0, Math.ceil(Math.log2(outW / TILE_SIZE))));
+        const bounds = worldPixelBounds(srcZoom);
+        const columns = Math.ceil(bounds.maxPixX / TILE_SIZE) - Math.floor(bounds.minPixX / TILE_SIZE);
+        const totalTiles = columns * Math.pow(2, srcZoom);
 
-        $('vf-ratio-tag').textContent = captureArea === 'equi' ? 'EQUI 2:1' : 'WORLD';
+        $('vf-ratio-tag').textContent = captureArea === 'equi' ? (useCustom ? 'EQUI CUSTOM' : 'EQUI 2:1') : (useCustom ? 'WORLD CUSTOM' : 'WORLD');
         $('vf-dim-tag').textContent = `${outW} × ${outH} px (${currentScale}×)`;
         $('world-dim').textContent = `${outW} × ${outH} px`;
         $('world-info').textContent = `${totalTiles} tiles • z${srcZoom}`;
@@ -1111,13 +1148,13 @@
         $('scale-warning').classList.toggle('hidden', !(currentScale >= 16 || !safetyLimitOn));
         $('scale-warning-text').innerHTML = safetyLimitOn
           ? '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.'
-          : '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.';
+          : t('warnUnsafe');
         $('info-cache').textContent = `${tileCache.size} tiles`;
 
         const center = map.getCenter();
         $('hud-coords').textContent = `${center.lat.toFixed(3)}°, ${center.lng.toFixed(3)}° • ${captureArea.toUpperCase()}`;
 
-        return { world: true, equi: captureArea === 'equi', x0: 0, y0: 0, x1: W, y1: H, fw: W, fh: H, outW, outH, srcZoom, totalTiles, clamped: false };
+        return { world: true, equi: captureArea === 'equi', x0: 0, y0: 0, x1: W, y1: H, fw: W, fh: H, outW, outH, srcZoom, totalTiles, clamped };
       }
       worldBadge.classList.add('hidden');
 
@@ -1200,7 +1237,7 @@
       $('scale-warning').classList.toggle('hidden', !warnOn);
       $('scale-warning-text').innerHTML = safetyLimitOn
         ? '<b>Chế độ siêu nét:</b> Bộ giới hạn GPU tự động sẽ kẹp kích thước canvas theo phần cứng thiết bị để chống sập tab.'
-        : '<b>Giới hạn an toàn ĐANG TẮT:</b> canvas chạy đúng theo Scale, chỉ bị chặn ở trần trình duyệt 16384px. Ảnh cực lớn có thể làm sập tab — tự chịu rủi ro.';
+        : t('warnUnsafe');
       $('info-cache').textContent = `${tileCache.size} tiles`;
       $('scale-badge').textContent = useCustom
         ? `${customW} × ${customH} px`
@@ -1351,8 +1388,10 @@
     $('custom-res-check').addEventListener('change', (e) => setCustomRes(e.target.checked));
 
     function setCustomSize(w, h) {
-      customW = Math.min(16384, Math.max(64, Math.round(w)));
-      customH = Math.min(16384, Math.max(64, Math.round(h)));
+      // Validate representable, finite integer inputs, but impose no pixel ceiling.
+      if (!Number.isSafeInteger(Math.round(w)) || !Number.isSafeInteger(Math.round(h)) || w < 64 || h < 64) return;
+      customW = Math.round(w);
+      customH = Math.round(h);
       $('custom-w').value = customW;
       $('custom-h').value = customH;
       updateViewfinder();
@@ -1681,9 +1720,18 @@
         else if (area === 'world') noteEl.innerHTML = t('areaWorldNote');
         else if (area === 'equi') noteEl.innerHTML = t('areaEquiNote');
       }
-      if (area === 'world' || area === 'equi') showToast(t('toastWorld'), 'info', 4000);
+      if (area === 'world' || area === 'equi') {
+        map.setView([0, worldCenterLng], 2);
+        showToast(t('toastWorld'), 'info', 4000);
+      }
       updateViewfinder();
     }
+    $('world-center').addEventListener('input', e => {
+      if (!Number.isFinite(e.target.valueAsNumber)) return;
+      worldCenterLng = Math.max(-180, Math.min(180, e.target.valueAsNumber));
+      if (captureArea !== 'viewport') map.setView([0, worldCenterLng], 2);
+      updateViewfinder();
+    });
     document.querySelectorAll('.area-btn').forEach(b => {
       b.addEventListener('click', () => setCaptureArea(b.getAttribute('data-area')));
     });
@@ -1726,9 +1774,10 @@
       }
     }
 
-    // Thứ tự mặc định: weserv (CDN ảnh, thường nhanh nhất) trước.
-    // ensureFastProxy() sẽ ĐO ĐỘ TRỄ THẬT và tự xếp lại thứ tự.
+    // Prefer our restricted same-origin Cloudflare relay. Public proxies are
+    // fallbacks for static-only hosting or custom providers outside its allowlist.
     const PROXY_BUILDERS = [
+      (u) => `/api/tiles?url=${encodeURIComponent(u)}`,
       (u) => `https://images.weserv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//, ''))}`,
       (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
       (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
@@ -1743,16 +1792,24 @@
       return idxs;
     }
 
-    /** Đo tốc độ thật của 3 proxy bằng 1 tile mẫu (song song) → chọn cái nhanh nhất */
+    /** Prefer the first-party relay; probe public fallbacks only if it is unavailable. */
     async function ensureFastProxy(force = false) {
       if (!force && proxyProbePromise) return proxyProbePromise;
       const p = (async () => {
         try {
           const sample = buildTileUrl(currentSourceKey, 2, 2, 1);
-          const results = await Promise.all(PROXY_BUILDERS.map(async (mk, i) => {
+          try {
+            const entry = await fetchTileEntry(PROXY_BUILDERS[0](sample), 6000);
+            entry.close();
+            activeProxyIdx = 0;
+            return true;
+          } catch (_) { /* Static-only hosting or a custom provider: try public relays. */ }
+          const results = await Promise.all(PROXY_BUILDERS.slice(1).map(async (mk, offset) => {
+            const i = offset + 1;
             const t0 = performance.now();
             try {
-              await fetchTileEntry(mk(sample), 7000);
+              const entry = await fetchTileEntry(mk(sample), 7000);
+              entry.close();
               return { i, ms: performance.now() - t0, ok: true };
             } catch (_) {
               return { i, ms: Infinity, ok: false };
@@ -1780,7 +1837,7 @@
           mode: 'cors', credentials: 'omit', cache: 'force-cache',
           referrerPolicy: 'no-referrer', signal: ctl.signal,
         });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if (!res.ok || res.type === 'opaque' || res.type === 'opaqueredirect') throw new Error('Unreadable tile: HTTP ' + res.status);
         const blob = await res.blob();
         if (!blob.type.startsWith('image')) throw new Error('not-image');
         if ('createImageBitmap' in window) {
@@ -1796,38 +1853,41 @@
       }
     }
 
-    /** Loader tốc độ cao: cache RAM → fetch/bitmap (kèm proxy) → <img> CORS → <img> thường */
+    /** Export tiles must be origin-clean. corsSafe is a hint, not a guarantee. */
     async function loadTileFast(url, corsSafe) {
       const hit = cacheTouch(url);
       if (hit) return { data: hit.data, tainted: false, cached: true };
 
-      if (corsSafe) {
-        try {
-          const entry = await fetchTileEntry(url, 12000);
-          cacheSet(url, entry);
-          return { data: entry.data, tainted: false, cached: false };
-        } catch (_) { /* rơi xuống fallback <img> bên dưới */ }
-      } else if (useProxy) {
-        // Proxy nhanh nhất (đã đo) đi trước; backup timeout NGẮN để fail-fast
-        const order = proxyOrder();
-        for (let k = 0; k < order.length; k++) {
-          try {
-            const entry = await fetchTileEntry(PROXY_BUILDERS[order[k]](url), k === 0 ? 10000 : 5000);
-            cacheSet(url, entry);
-            return { data: entry.data, tainted: false, cached: false };
-          } catch (_) { /* thử proxy kế tiếp */ }
-        }
-      }
+      const direct = async () => {
+        try { return await fetchTileEntry(url, 12000); } catch (_) {}
+        // A CORS image is safe too. Never fall back to a non-CORS remote image.
+        const img = await loadImg(url, true, 6000);
+        return img ? { data: img, close() {} } : null;
+      };
+      const remember = (entry) => {
+        cacheSet(url, entry);
+        return { data: entry.data, tainted: false, cached: false };
+      };
 
       if (corsSafe) {
-        const img = await loadImg(url, true);
-        if (img) {
-          cacheSet(url, { data: img, close() {} });
-          return { data: img, tainted: false, cached: false };
+        const entry = await direct();
+        if (entry) return remember(entry);
+      }
+      // Even a supposedly CORS-safe provider may change its response headers.
+      // Relay after a failed direct request for ALL providers, not only corsSafe=false.
+      if (useProxy) {
+        for (const [k, idx] of proxyOrder().entries()) {
+          try {
+            const entry = await fetchTileEntry(PROXY_BUILDERS[idx](url), k === 0 ? 10000 : 5000);
+            return remember(entry);
+          } catch (_) { /* Try the next readable transport. */ }
         }
       }
-      const taintedImg = await loadImg(url, false);
-      if (taintedImg) return { data: taintedImg, tainted: true, cached: false };
+      if (!corsSafe) {
+        const entry = await direct();
+        if (entry) return remember(entry);
+      }
+      // Missing tiles are reported by capture; unsafe images must never reach a canvas.
       return { data: null };
     }
 
@@ -1837,9 +1897,14 @@
       if (vf.world) {
         const n = Math.pow(2, vf.srcZoom);
         const out = [];
+        const b = worldPixelBounds(vf.srcZoom);
+        const first = Math.floor(b.minPixX / TILE_SIZE);
+        const last = Math.ceil(b.maxPixX / TILE_SIZE) - 1;
         for (let ty = 0; ty < n; ty++)
-          for (let tx = 0; tx < n; tx++)
-            out.push({ tx, ty, url: buildTileUrl(currentSourceKey, vf.srcZoom, tx, ty) });
+          for (let tx = first; tx <= last; tx++) {
+            const wrappedX = ((tx % n) + n) % n;
+            out.push({ tx, ty, url: buildTileUrl(currentSourceKey, vf.srcZoom, wrappedX, ty) });
+          }
         return out;
       }
       // Pixel tuyệt đối → không sai ở rìa kinh tuyến 180°
@@ -1877,6 +1942,20 @@
       await Promise.all(pool);
     }
 
+    // Await encoding so errors in the download/snapshot stage are caught too.
+    function canvasToBlob(canvas, mimeType, quality) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob);
+          else {
+            const error = new Error('Canvas encoder returned no image');
+            error.name = 'CanvasEncodingError';
+            reject(error);
+          }
+        }, mimeType, quality);
+      });
+    }
+
     async function executeCapture() {
       if (isCapturing) return;
       isCapturing = true;
@@ -1906,7 +1985,7 @@
 
       // Biên pixel tuyệt đối — vắt qua kinh tuyến 180° vẫn liền mạch
       const pb = vf.world
-        ? { minPixX: 0, maxPixX: worldSize, minPixY: 0, maxPixY: worldSize }
+        ? worldPixelBounds(srcZoom)
         : pixelBoundsAt(vf.x0, vf.y0, vf.x1, vf.y1, srcZoom);
       const minPixX = pb.minPixX, maxPixX = pb.maxPixX;
       const minPixY = pb.minPixY, maxPixY = pb.maxPixY;
@@ -1990,13 +2069,27 @@
         return;
       }
 
-      // Danh sách tile dùng chung thuật toán với prefetch (đồng bộ 100%)
-      const tileTasks = enumerateTileUrls(vf);
-
+      // No app dimension cap: verify what the browser actually accepted before
+      // enumerating potentially many source tiles. Canvas attributes may wrap.
       const canvas = document.createElement('canvas');
-      canvas.width = vf.outW;
-      canvas.height = vf.outH;
-      const ctx = canvas.getContext('2d');
+      let ctx;
+      try {
+        canvas.width = vf.outW;
+        canvas.height = vf.outH;
+        ctx = canvas.getContext('2d');
+        if (canvas.width !== vf.outW || canvas.height !== vf.outH || !ctx) {
+          throw new RangeError(`Browser rejected the requested ${vf.outW} × ${vf.outH} canvas`);
+        }
+      } catch (err) {
+        canvas.width = canvas.height = 0;
+        showToast(t('toastCanvasSize', { w: vf.outW, h: vf.outH }), 'error', 8000);
+        $('speed-indicator').textContent = t('finExport');
+        isCapturing = false;
+        mobileText.textContent = captureLabelText();
+        setTimeout(() => progressBox.classList.add('hidden'), 3200);
+        return;
+      }
+      const tileTasks = enumerateTileUrls(vf);
       if (maskMode === 'all') {           // có mask → giữ nền trong suốt tuyệt đối
         ctx.fillStyle = '#06101e';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2037,8 +2130,8 @@
         },
         (done, total, item, res) => {
           const { data, tainted, cached } = res || {};
-          if (data) {
-            if (tainted) taintedUsed = true;
+          if (tainted) taintedUsed = true;
+          if (data && !tainted) {
             if (cached) cachedHits++;
             proxyFailStreak = 0;
             // Chụp BIỂN: bỏ qua tile trắng đồng nhất (vùng cực không có dữ liệu)
@@ -2050,7 +2143,7 @@
               const dh = TILE_SIZE * scaleY + 0.6;
               ctx.drawImage(data, dx, dy, dw, dh);
             }
-            if (!cached && data.tagName) data.src = ''; // giải phóng <img> rồi, bản cache giữ nguyên
+            // Cached images stay decoded until their LRU entry is evicted.
           } else {
             failedCount++;
             if (viaProxy) {
@@ -2138,38 +2231,62 @@
       const mimeType = (currentFormat === 'jpeg' && !forcePng) ? 'image/jpeg' : 'image/png';
       const quality = mimeType === 'image/jpeg' ? 0.92 : undefined;
 
+      // Normal viewport/world capture exports the canvas we just drew.
+      // Previously finalCv was undeclared here, so EVERY regular capture threw
+      // ReferenceError before the encoder ran, regardless of dimensions or CORS.
+      let finalCv = canvas;
       try {
-        finalCv.toBlob((blob) => {
-          if (!blob) {
-            showToast(t('toastNoBlob'), 'error');
-            finish(t('finMem'));
-            return;
+        if (vf.equi) {
+          statusText.textContent = 'Đang chuyển đổi phép chiếu Equirectangular...';
+          progressBar.style.width = '98%';
+          await new Promise(resolve => setTimeout(resolve, 10));
+          finalCv = document.createElement('canvas');
+          finalCv.width = vf.outW;
+          finalCv.height = vf.outH;
+          const eqx = finalCv.getContext('2d');
+          for (let y = 0; y < finalCv.height; y++) {
+            const lat = 90 - (y / finalCv.height) * 180;
+            if (lat > MAX_LAT || lat < -MAX_LAT) continue;
+            const mercY = latToY(lat, srcZoom, TILE_SIZE) * (canvas.height / worldSize);
+            eqx.drawImage(canvas, 0, Math.max(0, mercY - 0.5), canvas.width, 1, 0, y, finalCv.width, 1);
           }
-          const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
-          const blobUrl = URL.createObjectURL(blob);
-          const sizeMB = (blob.size / 1048576).toFixed(2);
-          const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
-          const MASK_TAG = { all: '', land: '-' + t('fileLand'), ocean: '-' + t('fileOcean'), combo: '-' + t('fileMap'), blank: '-' + t('fileBlank') };
-          const maskTag = MASK_TAG[maskMode] || '';
-          const filename = `satellite-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}${maskTag}.${ext}`;
+        }
 
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = filename;
-          a.click();
+        const blob = await canvasToBlob(finalCv, mimeType, quality);
+        const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+        const blobUrl = URL.createObjectURL(blob);
+        const sizeMB = (blob.size / 1048576).toFixed(2);
+        const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+        const MASK_TAG = { all: '', land: '-' + t('fileLand'), ocean: '-' + t('fileOcean'), combo: '-' + t('fileMap'), blank: '-' + t('fileBlank') };
+        const maskTag = MASK_TAG[maskMode] || '';
+        const filename = `satellite-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}${maskTag}.${ext}`;
 
-          addSnapshot(blobUrl, vf.outW, vf.outH, currentRatio, totalDuration, currentScale, sizeMB, filename);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        a.click();
+        addSnapshot(blobUrl, vf.outW, vf.outH, currentRatio, totalDuration, currentScale, sizeMB, filename);
 
-          progressBar.style.width = '100%';
-          statusPct.textContent = '100%';
-          statusText.textContent = t('stDone', { d: totalDuration, m: sizeMB });
-          showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: sizeMB, d: totalDuration }), 'success');
-          finish(`${totalDuration}s (${currentScale}×)`);
-          mobileText.textContent = captureLabelText();
-        }, mimeType, quality);
+        progressBar.style.width = '100%';
+        statusPct.textContent = '100%';
+        statusText.textContent = t('stDone', { d: totalDuration, m: sizeMB });
+        showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: sizeMB, d: totalDuration }), 'success');
+        finish(`${totalDuration}s (${currentScale}×)`);
+        mobileText.textContent = captureLabelText();
       } catch (err) {
-        showToast(t('toastCanvasBlock'), 'error', 7000);
-        finish(t('finCors'));
+        console.error('Capture export failed:', err);
+        const securityError = err.name === 'SecurityError';
+        const encodingError = err.name === 'CanvasEncodingError';
+        // Toasts allow markup; escape runtime error text before displaying it.
+        const detail = `${err.name}: ${err.message}`.replace(/[&<>"']/g, c => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]);
+        showToast(t(securityError ? 'toastCanvasBlock' : encodingError ? 'toastNoBlob' : 'toastExportError', { m: detail }), 'error', 7000);
+        finish(t(securityError ? 'finCors' : 'finExport'));
+      } finally {
+        // Blob encoding is finished before releasing either backing canvas.
+        if (finalCv !== canvas) finalCv.width = finalCv.height = 0;
+        canvas.width = canvas.height = 0;
       }
     }
 
@@ -2205,7 +2322,7 @@
       const srcZoom = vf.srcZoom;
       const worldSize = TILE_SIZE * Math.pow(2, srcZoom);
       const pb = vf.world
-        ? { minPixX: 0, maxPixX: worldSize, minPixY: 0, maxPixY: worldSize }
+        ? worldPixelBounds(srcZoom)
         : pixelBoundsAt(vf.x0, vf.y0, vf.x1, vf.y1, srcZoom);
       const minPixX = pb.minPixX, maxPixX = pb.maxPixX;
       const minPixY = pb.minPixY, maxPixY = pb.maxPixY;
@@ -2291,8 +2408,8 @@
       const tileTasks = enumerateTileUrls(vf);
 
       // Hai canvas nền: lớp đất giữ MỌI tile, lớp biển bỏ tile trắng đồng nhất
-      const baseLand = document.createElement('canvas');
-      const baseOcean = document.createElement('canvas');
+      let baseLand = document.createElement('canvas');
+      let baseOcean = document.createElement('canvas');
       baseLand.width = baseOcean.width = vf.outW;
       baseLand.height = baseOcean.height = vf.outH;
       const ctxL = baseLand.getContext('2d');
@@ -2319,13 +2436,13 @@
         async (task) => await loadTileFast(task.url, src.corsSafe),
         (done, total, item, res) => {
           const { data, tainted } = res || {};
-          if (data) {
+          if (data && !tainted) {
             const dx = (item.tx * TILE_SIZE - minPixX) * scaleX;
             const dy = (item.ty * TILE_SIZE - minPixY) * scaleY;
             const dw = TILE_SIZE * scaleX + 0.6, dh = TILE_SIZE * scaleY + 0.6;
             ctxL.drawImage(data, dx, dy, dw, dh);               // lớp đất: giữ tất cả
             if (!tainted && !isUniformBlank(data)) ctxO.drawImage(data, dx, dy, dw, dh); // lớp biển: bỏ vùng trống
-            if (!tainted && data.tagName) data.src = '';
+            // Do not clear the src of an image retained by tileCache.
           } else failed++;
           const pct = Math.round((done / total) * 95);
           progressBar.style.width = `${pct}%`; statusPct.textContent = `${pct}%`;
@@ -2439,18 +2556,9 @@
       prefetchTimer = setTimeout(() => prefetchViewfinder(tk), delay);
     }
 
-    /** Prefetch "nhẹ" cho nguồn chặn CORS: chỉ dùng 1 proxy nhanh nhất,
-     *  ít luồng hơn để không spam dịch vụ proxy công cộng. */
+    /** Prefetch and capture share the same origin-clean loading and cache rules. */
     async function loadTileLight(url, corsSafe) {
-      if (corsSafe) return loadTileFast(url, true);
-      try {
-        // Dùng đúng proxy nhanh nhất đã đo (mặc định weserv)
-        const entry = await fetchTileEntry(PROXY_BUILDERS[activeProxyIdx](url), 12000);
-        cacheSet(url, entry);
-        return { data: entry.data, tainted: false, cached: false };
-      } catch (_) {
-        return { data: null }; // im lặng — lúc chụp sẽ chạy fallback đầy đủ
-      }
+      return loadTileFast(url, corsSafe);
     }
 
     async function prefetchViewfinder(token) {
