@@ -4,3 +4,6 @@ dist/
 .dev.vars
 .env
 .env.*
+
+# Optional browser-check dependencies, fixtures and benchmark results
+.cache/

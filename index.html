@@ -1450,6 +1450,7 @@
     let maskDetail = '50m';
     let maskPreviewOn = true;
     let previewToken = 0; // token chống race khi render preview
+    const landPending = new Map();
     const landCache = {};        // detail -> GeoJSON
 
     const LAND_SOURCES = {
@@ -1461,27 +1462,34 @@
 
     async function loadLandData(detail) {
       if (landCache[detail]) return landCache[detail];
-      const urls = LAND_SOURCES[detail] || LAND_SOURCES['50m'];
-      $('mask-status').textContent = t('stMaskLoad');
-      for (const u of urls) {
-        try {
-          const res = await fetch(u, { mode: 'cors', cache: 'force-cache' });
-          if (!res.ok) continue;
-          const json = await res.json();
-          let geo = json;
-          if (json.type === 'Topology') {
-            if (!window.topojson) continue;
-            const key = json.objects.land ? 'land' : Object.keys(json.objects)[0];
-            geo = topojson.feature(json, json.objects[key]);
-          }
-          // Giữ GeoJSON nguyên bản — d3-geo tự xử lý kinh tuyến 180° khi chiếu
-          landCache[detail] = geo;
-          $('mask-status').textContent = maskStatusLabel(maskMode);
-          return geo;
-        } catch (_) { /* thử URL kế tiếp */ }
-      }
-      $('mask-status').textContent = t('stMaskErr');
-      return null;
+      if (landPending.has(detail)) return landPending.get(detail);
+      // Deduplicate concurrent preview/export fetches, including JSON decoding.
+      const pending = (async () => {
+        const urls = LAND_SOURCES[detail] || LAND_SOURCES['50m'];
+        $('mask-status').textContent = t('stMaskLoad');
+        for (const u of urls) {
+          try {
+            const res = await fetch(u, { mode: 'cors', cache: 'force-cache' });
+            if (!res.ok) continue;
+            const json = await res.json();
+            let geo = json;
+            if (json.type === 'Topology') {
+              if (!window.topojson) continue;
+              const key = json.objects.land ? 'land' : Object.keys(json.objects)[0];
+              geo = topojson.feature(json, json.objects[key]);
+            }
+            // Giữ GeoJSON nguyên bản — d3-geo tự xử lý kinh tuyến 180° khi chiếu
+            landCache[detail] = geo;
+            $('mask-status').textContent = maskStatusLabel(maskMode);
+            return geo;
+          } catch (_) { /* thử URL kế tiếp */ }
+        }
+        $('mask-status').textContent = t('stMaskErr');
+        return null;
+      })();
+      landPending.set(detail, pending);
+      try { return await pending; }
+      finally { landPending.delete(detail); } // allow retry after failed sources
     }
 
     /* ---------- MASK BẰNG d3-geo ----------
@@ -1553,6 +1561,7 @@
     /** Xem trước bằng CANVAS vẽ trực tiếp từ chính logic mask của ảnh xuất
      *  (makeLandPath + d3-geo) → WYSIWYG 100%, d3 tự cắt kinh tuyến 180°. */
     async function refreshMaskPreview() {
+      if (isCapturing) return;
       const tk = ++previewToken;
       try {
         const mapEl = $('map');
@@ -1569,7 +1578,7 @@
         // 10m quá nặng để vẽ lại mỗi lần pan → preview dùng 50m (xuất vẫn dùng đúng 10m)
         const previewDetail = maskDetail === '10m' ? '50m' : maskDetail;
         const geo = landCache[previewDetail] || await loadLandData(previewDetail);
-        if (tk !== previewToken || maskMode === 'all' || !maskPreviewOn) return;
+        if (isCapturing || tk !== previewToken || maskMode === 'all' || !maskPreviewOn) return;
         if (!geo) return;
 
         // Dùng Leaflet's container-to-latlng trực tiếp → luôn khớp mọi mức zoom
@@ -1655,6 +1664,7 @@
 
     function setMaskMode(mode) {
       maskMode = mode;
+      if (mode === 'blank') { prefetchToken++; clearTimeout(prefetchTimer); }
       markActive([...document.querySelectorAll('.mask-btn')], 'data-mask', mode);
       $('mask-status').textContent = maskStatusLabel(mode);
       $('ocean-color-row').classList.toggle('hidden', mode !== 'combo');
@@ -1941,6 +1951,144 @@
       });
     }
 
+    // One bounded vector cache, never a full-resolution bitmap cache. D3's SVG
+    // buffer + native Path2D parsing benchmarks faster than a JS-to-native call
+    // per 10m vertex; compile once rather than rebuilding on repeated captures.
+    let whiteGeometryCache = null;
+    function whiteMapGeometry(geo, vf, pb) {
+      const { outW: width, outH: height } = vf;
+      const key = [width, height, vf.equi, vf.srcZoom,
+        pb.minPixX, pb.maxPixX, pb.minPixY, pb.maxPixY].join('|');
+      if (whiteGeometryCache?.geo === geo && whiteGeometryCache.key === key) {
+        return whiteGeometryCache.geometry;
+      }
+      const paths = [];
+      let stretchY = 1, top = 0, bottom = height;
+      if (vf.equi) {
+        const worldSize = TILE_SIZE * Math.pow(2, vf.srcZoom);
+        const centerLng = ((pb.minPixX + pb.maxPixX) / 2) / worldSize * 360 - 180;
+        stretchY = height * 2 / width;
+        // Native geographic projection: no Mercator bitmap or O(height) scanline
+        // resampling. Stretch at fill time to support arbitrary custom dimensions.
+        const projection = d3.geoEquirectangular()
+          .rotate([-centerLng, 0]).scale(width / (2 * Math.PI))
+          .translate([width / 2, width / 4]).precision(0.5 / Math.max(1, stretchY))
+          .clipExtent([[0, 0], [width, width / 2]]);
+        const d = d3.geoPath(projection)(geo);
+        if (d) paths.push(new Path2D(d));
+        // Preserve the old export's transparent rows outside the Mercator domain.
+        top = Math.ceil(height * (90 - MAX_LAT) / 180);
+        bottom = Math.min(height, Math.floor(height * (90 + MAX_LAT) / 180) + 1);
+      } else {
+        const scaleX = width / (pb.maxPixX - pb.minPixX);
+        const scaleY = height / (pb.maxPixY - pb.minPixY);
+        const worldSize = TILE_SIZE * Math.pow(2, vf.srcZoom);
+        const centerY = (worldSize / 2 - pb.minPixY) * scaleY;
+        // Keep Mercator's automatic polar clip when narrowing it to the output.
+        const clipTop = Math.max(0, centerY - worldSize * scaleX / 2);
+        const clipBottom = Math.min(height, centerY + worldSize * scaleX / 2);
+        for (const offset of antimeridianOffsets(pb.minPixX, pb.maxPixX - pb.minPixX, worldSize)) {
+          if (clipBottom <= clipTop) continue;
+          const projection = mercatorProjection(vf.srcZoom, pb.minPixX, pb.minPixY,
+            scaleX, scaleY, offset).clipExtent([[0, clipTop], [width, clipBottom]]);
+          const d = d3.geoPath(projection)(geo);
+          if (d) paths.push(new Path2D(d));
+        }
+      }
+      const geometry = { paths, stretchY, top, bottom };
+      whiteGeometryCache = { geo, key, geometry };
+      return geometry;
+    }
+
+    function paintWhiteMap(canvas, geometry, layer) {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new RangeError('Browser rejected the white-map canvas');
+      const { top, bottom, stretchY, paths } = geometry;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      try {
+        // Clip in output pixels before applying the equirectangular Y stretch.
+        ctx.beginPath(); ctx.rect(0, top, canvas.width, bottom - top); ctx.clip();
+        if (layer !== 'land') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, top, canvas.width, bottom - top);
+        }
+        ctx.scale(1, stretchY);
+        ctx.fillStyle = '#000000';
+        if (layer === 'ocean') ctx.globalCompositeOperation = 'destination-out';
+        for (const path of paths) ctx.fill(path, 'evenodd');
+      } finally { ctx.restore(); }
+    }
+
+    async function executeWhiteCapture(vf, pb, dual, startTime) {
+      const progressBox = $('progress-box'), progressBar = $('progress-bar');
+      const statusText = $('status-text'), statusPct = $('status-pct');
+      const detail = maskDetail, format = dual ? 'png' : currentFormat;
+      const ratio = currentRatio, scale = currentScale, source = currentSourceKey;
+      let canvas, completed = false;
+      try {
+        statusText.textContent = t('stBlankRun');
+        progressBar.style.width = '15%'; statusPct.textContent = '15%';
+        if (!window.d3 || !d3.geoMercator || (vf.equi && !d3.geoEquirectangular)) {
+          showToast(t('toastDualNoD3'), 'error', 6000); return;
+        }
+        const geo = await loadLandData(detail);
+        if (!geo) { showToast(t('toastDualNoData'), 'error', 7000); return; }
+        canvas = document.createElement('canvas');
+        canvas.width = vf.outW; canvas.height = vf.outH;
+        if (canvas.width !== vf.outW || canvas.height !== vf.outH || !canvas.getContext('2d')) {
+          throw new RangeError(`Browser rejected the requested ${vf.outW} × ${vf.outH} canvas`);
+        }
+        const geometry = whiteMapGeometry(geo, vf, pb);
+        const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+        const ext = format === 'jpeg' ? 'jpg' : 'png';
+        const layers = dual ? ['ocean', 'land'] : ['map'];
+        for (let i = 0; i < layers.length; i++) {
+          const layer = layers[i];
+          paintWhiteMap(canvas, geometry, layer);
+          progressBar.style.width = `${65 + i * 20}%`; statusPct.textContent = `${65 + i * 20}%`;
+          // Await the encoder BEFORE reusing the same backing store for layer two.
+          const blob = await canvasToBlob(canvas, mime, format === 'jpeg' ? 0.92 : undefined);
+          const url = URL.createObjectURL(blob);
+          const suffix = dual ? `-${t(layer === 'land' ? 'fileLand' : 'fileOcean')}` : '';
+          const name = `whitemap-${source}-${ratio.replace(':', 'x')}-${scale}x-${vf.outW}x${vf.outH}-${t('fileBlank')}${suffix}.${ext}`;
+          const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+          const duration = ((performance.now() - startTime) / 1000).toFixed(2);
+          const sizeMB = (blob.size / 1048576).toFixed(2);
+          addSnapshot(url, vf.outW, vf.outH, ratio, duration, scale, sizeMB, name);
+          statusText.textContent = t('stDone', { d: duration, m: dual ? '2×PNG' : sizeMB });
+          if (!dual) showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: sizeMB, d: duration }), 'success');
+        }
+        if (dual) showToast(t('toastDualDone', {
+          land: `${t('fileBlank')}-${t('fileLand')}`, ocean: `${t('fileBlank')}-${t('fileOcean')}`
+        }), 'success', 6000);
+        progressBar.style.width = '100%'; statusPct.textContent = '100%';
+        $('speed-indicator').textContent = `${((performance.now() - startTime) / 1000).toFixed(2)}s`;
+        completed = true;
+      } catch (err) {
+        console.error('White-map export failed', err);
+        if (err.name === 'RangeError') {
+          showToast(t('toastCanvasSize', { w: vf.outW, h: vf.outH }), 'error', 8000);
+        } else if (err.name === 'CanvasEncodingError') {
+          showToast(t('toastNoBlob'), 'error', 8000);
+        } else {
+          const message = String(err.message || err).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+          }[c]));
+          showToast(t('toastExportError', { m: message }), 'error', 8000);
+        }
+      } finally {
+        // Includes rejected contexts, data failures, thrown/null encoders and dual
+        // failures: release the large allocation and always unlock both buttons.
+        if (canvas) canvas.width = canvas.height = 0;
+        if (!completed) $('speed-indicator').textContent = t('finExport');
+        isCapturing = false;
+        $('mobile-btn-text').textContent = captureLabelText();
+        setTimeout(() => progressBox.classList.add('hidden'), 3200);
+        scheduleMaskPreview();
+      }
+    }
+
     async function executeCapture() {
       if (isCapturing) return;
       isCapturing = true;
@@ -1982,75 +2130,7 @@
 
       // ---------- BẢN ĐỒ TRẮNG: đen = đất, trắng = biển — không cần tile, tức thì ----------
       if (maskMode === 'blank') {
-        statusText.textContent = t('stBlankRun');
-        progressBar.style.width = '25%';
-        const doneB = (okMsg) => {
-          isCapturing = false;
-          mobileText.textContent = t('btnCapture', { s: currentScale });
-          setTimeout(() => progressBox.classList.add('hidden'), 3200);
-          if (okMsg) $('speed-indicator').textContent = okMsg;
-        };
-        const geoB = await loadLandData(maskDetail);
-        if (!geoB) { showToast(t('toastMaskNoData'), 'warn', 5000); doneB(); return; }
-        if (!window.d3 || !d3.geoMercator) { showToast(t('toastMaskNoD3'), 'warn', 5000); doneB(); return; }
-
-        const cvB = document.createElement('canvas');
-        cvB.width = vf.outW; cvB.height = vf.outH;
-        const cb = cvB.getContext('2d');
-        cb.fillStyle = '#ffffff';                       // biển = trắng
-        cb.fillRect(0, 0, vf.outW, vf.outH);
-        progressBar.style.width = '55%';
-
-        // đất = đen, cắt pixel-perfect bằng chính mask d3-geo
-        const maskB = buildLandMask(geoB, vf.outW, vf.outH, srcZoom, minPixX, minPixY, scaleX, scaleY);
-        const landB = document.createElement('canvas');
-        landB.width = vf.outW; landB.height = vf.outH;
-        const lb = landB.getContext('2d');
-        lb.fillStyle = '#000000';
-        lb.fillRect(0, 0, vf.outW, vf.outH);
-        lb.globalCompositeOperation = 'destination-in';
-        lb.drawImage(maskB, 0, 0);
-        cb.drawImage(landB, 0, 0);
-        maskB.width = maskB.height = 0; landB.width = landB.height = 0;
-        progressBar.style.width = '90%';
-
-      // Reproject sang Equirectangular (nếu chọn)
-      let finalCvB = cvB;
-      if (vf.equi) {
-        statusText.textContent = 'Đang chuyển đổi phép chiếu Equirectangular...';
-        progressBar.style.width = '95%';
-        // Nghỉ 1 frame để UI update
-        await new Promise(r => setTimeout(r, 10));
-        const eq = document.createElement('canvas');
-        eq.width = vf.outW; eq.height = vf.outH; // 2:1
-        const eqx = eq.getContext('2d');
-        const eqH = eq.height;
-        const mercH = cvB.height;
-        for (let y = 0; y < eqH; y++) {
-          const lat = 90 - (y / eqH) * 180;
-          if (lat > MAX_LAT || lat < -MAX_LAT) continue;
-          const mercY = latToY(lat, vf.srcZoom, TILE_SIZE) * (mercH / (TILE_SIZE * Math.pow(2, vf.srcZoom)));
-          eqx.drawImage(cvB, 0, Math.max(0, mercY - 0.5), cvB.width, 1, 0, y, eq.width, 1);
-        }
-        finalCvB = eq;
-        cvB.width = cvB.height = 0; // giải phóng bản Mercator
-      }
-
-      const durB = ((performance.now() - startTime) / 1000).toFixed(2);
-      const mimeB = currentFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
-      const extB = mimeB === 'image/jpeg' ? 'jpg' : 'png';
-      finalCvB.toBlob((blob) => {
-        if (!blob) { showToast(t('toastNoBlob'), 'error'); doneB(); return; }
-        const url = URL.createObjectURL(blob);
-          const nm = `whitemap-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}-${t('fileBlank')}.${extB}`;
-          const a = document.createElement('a'); a.href = url; a.download = nm; a.click();
-          addSnapshot(url, vf.outW, vf.outH, currentRatio, durB, currentScale, (blob.size / 1048576).toFixed(2), nm);
-          progressBar.style.width = '100%'; statusPct.textContent = '100%';
-          statusText.textContent = t('stDone', { d: durB, m: (blob.size / 1048576).toFixed(2) });
-          showToast(t('toastExportOk', { w: vf.outW, h: vf.outH, m: (blob.size / 1048576).toFixed(2), d: durB }), 'success');
-          doneB(`${durB}s`);
-          mobileText.textContent = captureLabelText();
-        }, mimeB, mimeB === 'image/jpeg' ? 0.92 : undefined);
+        await executeWhiteCapture(vf, pb, false, startTime);
         return;
       }
 
@@ -2316,77 +2396,7 @@
 
       // ---------- BẢN ĐỒ TRẮNG 2 LỚP: đất đen / biển trắng, nền trong suốt ----------
       if (maskMode === 'blank') {
-        statusText.textContent = t('stBlankRun');
-        progressBar.style.width = '40%';
-        const geo = await loadLandData(maskDetail);
-        if (!geo || !window.d3 || !d3.geoMercator) {
-          showToast(t(geo ? 'toastDualNoD3' : 'toastDualNoData'), 'error', 5000);
-          isCapturing = false; mobileText.textContent = t('btnCapture', { s: currentScale });
-          setTimeout(() => progressBox.classList.add('hidden'), 3000);
-          return;
-        }
-        const maskCv = buildLandMask(geo, vf.outW, vf.outH, srcZoom, minPixX, minPixY, scaleX, scaleY);
-        const mkB = (fill, op) => {
-          const c = document.createElement('canvas');
-          c.width = vf.outW; c.height = vf.outH;
-          const x = c.getContext('2d');
-          x.fillStyle = fill; x.fillRect(0, 0, c.width, c.height);
-          x.globalCompositeOperation = op;
-          x.drawImage(maskCv, 0, 0);
-          return c;
-        };
-        const baseLand = mkB('#000000', 'destination-in');  // đất đen, biển trong suốt
-        const baseOcean = mkB('#ffffff', 'destination-out'); // biển trắng, đất trong suốt
-        maskCv.width = maskCv.height = 0;
-
-        const base = `whitemap-${currentSourceKey}-${currentRatio.replace(':', 'x')}-${currentScale}x-${vf.outW}x${vf.outH}`;
-        const layersB = [
-          { cv: baseOcean, name: `${base}-${t('fileBlank')}-${t('fileOcean')}.png` },
-          { cv: baseLand,  name: `${base}-${t('fileBlank')}-${t('fileLand')}.png` }
-        ];
-        // Reproject sang Equirectangular (nếu chọn) cho 2 lớp bản đồ trắng
-        if (vf.equi) {
-          statusText.textContent = 'Đang chuyển đổi phép chiếu Equirectangular...';
-          progressBar.style.width = '95%';
-          await new Promise(r => setTimeout(r, 10));
-          for (let i = 0; i < layersB.length; i++) {
-            const cv = layersB[i].cv;
-            const eq = document.createElement('canvas');
-            eq.width = vf.outW; eq.height = vf.outH;
-            const eqx = eq.getContext('2d');
-            const eqH = eq.height, mercH = cv.height;
-            for (let y = 0; y < eqH; y++) {
-              const lat = 90 - (y / eqH) * 180;
-              if (lat > MAX_LAT || lat < -MAX_LAT) continue;
-              const mercY = latToY(lat, vf.srcZoom, TILE_SIZE) * (mercH / (TILE_SIZE * Math.pow(2, vf.srcZoom)));
-              eqx.drawImage(cv, 0, Math.max(0, mercY - 0.5), cv.width, 1, 0, y, eq.width, 1);
-            }
-            layersB[i].cv = eq;
-            cv.width = cv.height = 0;
-          }
-        }
-
-        const durB = ((performance.now() - startTime) / 1000).toFixed(2);
-        let exported = 0;
-        for (const layer of layersB) {
-          await new Promise((res) => layer.cv.toBlob((blob) => {
-            if (blob) {
-              const u = URL.createObjectURL(blob);
-              const a = document.createElement('a'); a.href = u; a.download = layer.name; a.click();
-              addSnapshot(u, vf.outW, vf.outH, currentRatio, durB, currentScale, (blob.size / 1048576).toFixed(2), layer.name);
-              exported++;
-            }
-            layer.cv.width = layer.cv.height = 0; res();
-          }, 'image/png'));
-        }
-        progressBar.style.width = '100%'; statusPct.textContent = '100%';
-        statusText.textContent = t('stDone', { d: durB, m: '2×PNG' });
-        if (exported < 2) showToast(t('toastDualCors'), 'warn', 6000);
-        else showToast(t('toastDualDone', { land: `${t('fileBlank')}-${t('fileLand')}`, ocean: `${t('fileBlank')}-${t('fileOcean')}` }), 'success', 6000);
-        $('speed-indicator').textContent = `${durB}s (2×)`;
-        isCapturing = false;
-        mobileText.textContent = captureLabelText();
-        setTimeout(() => progressBox.classList.add('hidden'), 3200);
+        await executeWhiteCapture(vf, pb, true, startTime);
         return;
       }
 
@@ -2536,7 +2546,7 @@
 
     function schedulePrefetch(delay = 380) {
       clearTimeout(prefetchTimer);
-      if (captureArea === 'world' || isCapturing) return; // toàn cầu: vùng không đổi theo pan → không prefetch nền
+      if (captureArea === 'world' || isCapturing || maskMode === 'blank') return; // toàn cầu: vùng không đổi theo pan → không prefetch nền
       const tk = ++prefetchToken;
       prefetchTimer = setTimeout(() => prefetchViewfinder(tk), delay);
     }
@@ -2547,7 +2557,7 @@
     }
 
     async function prefetchViewfinder(token) {
-      if (isCapturing) return;
+      if (isCapturing || maskMode === 'blank') return;
       const src = TILE_SOURCES[currentSourceKey];
       const viaProxy = !src.corsSafe && useProxy;
       if (!src.corsSafe && !useProxy) return; // tắt proxy = không xuất được → khỏi prefetch
@@ -2560,7 +2570,7 @@
 
       const workers = viaProxy ? 3 : 8;
       await runParallelPool(tasks, workers, async (t) => {
-        if (token !== prefetchToken || isCapturing) return; // đã pan/chụp → hủy
+        if (token !== prefetchToken || isCapturing || maskMode === 'blank') return; // đã pan/chụp → hủy
         if (!tileCache.has(t.url)) await loadTileLight(t.url, src.corsSafe);
       });
 
@@ -2571,6 +2581,7 @@
 
     /** Mở sẵn kết nối HTTP/2 + hâm nóng DNS/proxy cho NGUỒN ĐANG CHỌN */
     function warmupConnection(key = currentSourceKey) {
+      if (maskMode === 'blank') return;
       try {
         const src = TILE_SOURCES[key];
         if (!src.corsSafe && useProxy) ensureFastProxy(true); // đo proxy ngay khi chọn nguồn

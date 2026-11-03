@@ -8,23 +8,44 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const worldBoundsCode = html.slice(html.indexOf('    function worldPixelBounds('), html.indexOf('    /** Số tile bao phủ'));
 const captureCode = html.slice(html.indexOf('    async function runParallelPool('), html.indexOf("    $('desktop-btn-capture').addEventListener"));
 
-function harness({ equi = false, format = 'jpeg', mask = 'all', encoder = 'ok', failure, rejectCanvas = false } = {}) {
+const dualCode = html.slice(html.indexOf('    async function executeDualCapture()'), html.indexOf("    $('btn-dual-export').addEventListener"));
+const projectionCode = html.slice(html.indexOf('    function mercatorProjection('), html.indexOf('    /** Path2D đất liền'));
+const offsetsCode = html.slice(html.indexOf('    function antimeridianOffsets('), html.indexOf('    function worldPixelBounds('));
+
+function harness({ world = false, noData = false, missingD3 = false, failAt = 1, equi = false, format = 'jpeg', mask = 'all', encoder = 'ok', failure, rejectCanvas = false } = {}) {
   const canvases = [], encodes = [], downloads = [], snapshots = [], toasts = [], errors = [];
   const elements = new Map();
+  let pathBuilds = 0;
+  const projection = () => {
+    const p = {};
+    for (const name of ['rotate', 'scale', 'translate', 'precision', 'clipExtent']) p[name] = () => p;
+    return p;
+  };
+  const fakeD3 = { geoMercator: projection, geoEquirectangular: projection, geoPath() {
+    const path = () => { pathBuilds++; return 'M0,0Z'; }; path.context = () => path; return path;
+  } };
+  const land = noData ? null : {};
+
   const element = id => {
     if (!elements.has(id)) elements.set(id, { style: {}, textContent: '', classList: { add() {}, remove() {} } });
     return elements.get(id);
   };
   const dims = equi ? { outW: 512, outH: 256 } : { outW: 1444, outH: 812 };
-  const vf = { ...dims, srcZoom: 8, x0: 0, y0: 0, x1: 256, y1: 256, world: equi, equi };
+  const vf = { ...dims, srcZoom: 8, x0: 0, y0: 0, x1: 256, y1: 256, world: world || equi, equi };
   class FakeCanvas {
     width = 0; height = 0; draws = [];
-    getContext() {
-      return rejectCanvas ? null : { fillRect() {}, drawImage: (...args) => this.draws.push(args) };
-    }
+    fills = [];
+    ctx = {
+      globalCompositeOperation: 'source-over', fillStyle: '',
+      fillRect() {}, clearRect() {}, beginPath() {}, rect() {}, clip() {}, scale() {},
+      save() {}, restore() { this.globalCompositeOperation = 'source-over'; },
+      fill: (path, rule) => this.fills.push({ rule, op: this.ctx.globalCompositeOperation }),
+      drawImage: (...args) => this.draws.push(args),
+    };
+    getContext() { return rejectCanvas ? null : this.ctx; }
     toBlob(callback, mimeType, quality) {
-      encodes.push({ canvas: this, w: this.width, h: this.height, mimeType, quality });
-      if (failure) throw failure;
+      encodes.push({ canvas: this, w: this.width, h: this.height, mimeType, quality, fills: [...this.fills] });
+      if (failure && encodes.length === failAt) throw failure;
       queueMicrotask(() => callback(encoder === 'null' ? null : new Blob(['pixels'], { type: mimeType })));
     }
   }
@@ -45,12 +66,12 @@ function harness({ equi = false, format = 'jpeg', mask = 'all', encoder = 'ok', 
     pixelBoundsAt: () => ({ minPixX: 0, maxPixX: 256, minPixY: 0, maxPixY: 256 }),
     enumerateTileUrls: () => [{ tx: 0, ty: 0, url: 'https://tiles.example/night.jpg' }],
     loadTileFast: async () => ({ data: { width: 256, height: 256 }, tainted: false, cached: false }),
-    captureLabelText: () => 'Capture',
+    captureLabelText: () => 'Capture', scheduleMaskPreview() {},
     addSnapshot: (...args) => snapshots.push(args),
     isUniformBlank: () => false,
-    loadLandData: async () => ({}),
+    loadLandData: async () => land,
     buildLandMask: () => new FakeCanvas(),
-    window: { d3: { geoMercator() {} } }, d3: { geoMercator() {} },
+    window: { d3: missingD3 ? null : fakeD3 }, d3: fakeD3, Path2D: class {},
     latToY: (lat, zoom, size) => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2 * size * 2 ** zoom,
   });
   function $(id) { return element(id); }
@@ -61,8 +82,11 @@ function harness({ equi = false, format = 'jpeg', mask = 'all', encoder = 'ok', 
     let currentFormat = ${JSON.stringify(format)}, maskMode = ${JSON.stringify(mask)}, maskDetail = '110m', oceanColor = '#123456';
     let useProxy = true, proxyProbePromise = null, activeProxyIdx = 0;
     const PROXY_BUILDERS = [u => u], TILE_SOURCES = { nasa_night: { corsSafe: true } };
-    ${captureCode}`, context);
-  return { canvases, encodes, downloads, snapshots, toasts, errors, elements, run: code => vm.runInContext(code, context) };
+    ${projectionCode}
+    ${offsetsCode}
+    ${captureCode}
+    ${dualCode}`, context);
+  return { get pathBuilds() { return pathBuilds; }, canvases, encodes, downloads, snapshots, toasts, errors, elements, run: code => vm.runInContext(code, context) };
 }
 
 for (const format of ['jpeg', 'png']) {
@@ -135,4 +159,88 @@ test('a browser-rejected canvas reports the requested size without leaving captu
   assert.equal(h.downloads.length, 0);
   assert.ok(h.toasts.some(t => /toastCanvasSize.*1444.*812/.test(t.message)));
   assert.equal(h.run('isCapturing'), false);
+});
+
+for (const [area, options] of Object.entries({ viewport: {}, world: { world: true }, equi: { equi: true } })) {
+  for (const format of ['png', 'jpeg']) {
+    test(`white ${area} ${format} export uses just one raster canvas and downloads the requested dimensions`, async () => {
+      const h = harness({ ...options, mask: 'blank', format });
+      await h.run('executeCapture()');
+      assert.equal(h.canvases.length, 1);
+      assert.equal(h.encodes.length, 1);
+      assert.deepEqual([h.encodes[0].w, h.encodes[0].h], options.equi ? [512, 256] : [1444, 812]);
+      assert.equal(h.downloads.length, 1);
+      assert.equal(h.encodes[0].mimeType, `image/${format}`);
+      assert.equal(h.encodes[0].fills.every(f => f.rule === 'evenodd'), true);
+      assert.equal(h.canvases[0].draws.length, 0, 'no intermediate masks or scanline resampling');
+      assert.equal(h.canvases[0].width, 0, 'backing store released after encoding');
+      assert.equal(h.run('isCapturing'), false);
+      assert.equal(h.errors.length, 0);
+      const compiled = h.pathBuilds;
+      await h.run('executeCapture()');
+      assert.equal(h.pathBuilds, compiled, 'repeat capture reuses vector geometry');
+    });
+  }
+  test(`white ${area} dual export sequentially encodes two complementary PNGs on the same canvas`, async () => {
+    const h = harness({ ...options, mask: 'blank' });
+    await h.run('executeDualCapture()');
+    assert.equal(h.canvases.length, 1);
+    assert.equal(h.encodes.length, 2);
+    assert.equal(h.encodes[0].canvas, h.encodes[1].canvas);
+    assert.equal(h.encodes.every(e => e.mimeType === 'image/png'), true);
+    assert.equal(h.encodes[0].fills[0].op, 'destination-out');
+    assert.equal(h.encodes[1].fills.at(-1).op, 'source-over', 'no stale erase operation on land layer');
+    assert.equal(h.downloads.length, 2);
+    assert.match(h.downloads[0].name, /fileOcean\.png$/);
+    assert.match(h.downloads[1].name, /fileLand\.png$/);
+    assert.equal(h.run('isCapturing'), false);
+    assert.equal(h.errors.length, 0);
+  });
+}
+
+for (const entry of ['executeCapture()', 'executeDualCapture()']) {
+  for (const [name, options, message] of [
+    ['unavailable data', { noData: true }, 'toastDualNoData'],
+    ['missing D3', { missingD3: true }, 'toastDualNoD3'],
+    ['rejected canvas', { rejectCanvas: true }, 'toastCanvasSize'],
+    ['null encoder', { encoder: 'null' }, 'toastNoBlob'],
+    ['thrown encoder', { failure: new Error('<encoder broke>') }, '&lt;encoder broke&gt;'],
+  ]) {
+    test(`white ${entry}: ${name} reports the real error and always unlocks capture`, async () => {
+      const h = harness({ mask: 'blank', ...options });
+      await h.run(entry);
+      assert.equal(h.run('isCapturing'), false);
+      assert.equal(h.canvases.every(cv => cv.width === 0 && cv.height === 0), true);
+      assert.equal(h.toasts.some(t => t.kind === 'error' && t.message.includes(message)), true);
+      assert.equal(h.downloads.length, 0);
+    });
+  }
+}
+
+test('white dual export cleans up even if the second encoder throws', async () => {
+  const h = harness({ mask: 'blank', failAt: 2, failure: new Error('second layer failed') });
+  await h.run('executeDualCapture()');
+  assert.equal(h.downloads.length, 1);
+  assert.equal(h.run('isCapturing'), false);
+  assert.equal(h.canvases[0].width, 0);
+  assert.equal(h.toasts.some(t => t.message.includes('second layer failed')), true);
+  assert.equal(h.toasts.some(t => t.message.includes('toastDualDone')), false);
+});
+
+test('white path cache is replaced when bounds, dimensions, projection or source geometry change', () => {
+  const h = harness({ mask: 'blank' });
+  h.run(`const geo = {}, bounds = {minPixX: 0, maxPixX: 256, minPixY: 0, maxPixY: 256};
+    const frame = {outW: 500, outH: 500, srcZoom: 0, equi: false};
+    whiteMapGeometry(geo, frame, bounds);`);
+  const initial = h.pathBuilds;
+  h.run('whiteMapGeometry(geo, frame, bounds)');
+  assert.equal(h.pathBuilds, initial);
+  for (const update of ['bounds.minPixY++', 'frame.outW++', 'frame.equi = true']) {
+    const before = h.pathBuilds;
+    h.run(`${update}; whiteMapGeometry(geo, frame, bounds)`);
+    assert.ok(h.pathBuilds > before);
+  }
+  const before = h.pathBuilds;
+  h.run('whiteMapGeometry({}, frame, bounds)');
+  assert.ok(h.pathBuilds > before);
 });
