@@ -5,7 +5,6 @@ const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/avi
 const XYZ = String.raw`\d{1,2}/\d{1,10}/\d{1,10}`;
 const TILE_ROUTES = [
   [/^gibs\.earthdata\.nasa\.gov$/, new RegExp(String.raw`^/wmts/epsg3857/best/(?:BlueMarble_ShadedRelief_Bathymetry|VIIRS_SNPP_CorrectedReflectance_TrueColor|VIIRS_CityLights_2012)/default/(?:\d{4}-\d{2}-\d{2})?/(?:EPSG3857_500m|GoogleMapsCompatible_Level[89])/${XYZ}\.(?:jpeg|jpg|png)$`)],
-  [/^tiles\.maps\.eox\.at$/, new RegExp(String.raw`^/wmts/1\.0\.0/(?:terrain_3857|s2cloudless_3857)/default/g/${XYZ}\.jpg$`)],
   [/^server\.arcgisonline\.com$/, new RegExp(String.raw`^/ArcGIS/rest/services/(?:World_Imagery|World_Topo_Map|World_Street_Map|NatGeo_World_Map|Canvas/World_Dark_Gray_Base|Canvas/World_Light_Gray_Base)/MapServer/tile/${XYZ}$`, 'i')],
   [/^fly\.maptiles\.arcgis\.com$/, new RegExp(String.raw`^/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/${XYZ}$`, 'i')],
   [/^basemap\.nationalmap\.gov$/, new RegExp(String.raw`^/arcgis/rest/services/(?:USGSImageryOnly|USGSImageryTopo)/MapServer/tile/${XYZ}$`, 'i')],

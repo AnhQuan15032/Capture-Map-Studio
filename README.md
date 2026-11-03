@@ -2,22 +2,11 @@
 
 Leaflet map capture studio with Vietnamese and English UI and a restricted Cloudflare tile relay for origin-clean exports.
 
-## Pinned world maps
+## Map sources
 
-The source picker keeps these maps above the independently scrolling provider list:
+All sources appear in the normal searchable provider list. **Esri World Imagery** is the default. The added Satellite World Map and Natural Earth / Physical World Map presets and the pinned section have been removed. Original providers, including NASA Blue Marble, City Lights, Bing, Google, and Esri, remain available.
 
-- **Satellite World Map** — NASA Blue Marble with shaded relief **and bathymetry**, replacing the Sentinel-2 mosaic whose land colors did not match the reference. Native zoom up to 8. The WMTS template uses the static (empty) time segment, `EPSG3857_500m` tile matrix and `.jpeg` extension. This is the default source; the existing NASA Blue Marble entry points to the same corrected endpoint.
-- **Natural Earth / Physical World Map** — EOX Terrain, an ocean-inclusive physical basemap using Natural Earth and OpenStreetMap data. This replaces the OpenFreeMap `ne2sr` land-only relief layer that displayed white oceans. Uses the published Web Mercator `terrain_3857` layer (not the obsolete `ne_terrain2` URL). This global-relief preset intentionally caps source tile requests at zoom 8; this is an application cap, not a claim about EOX's maximum service zoom. Closer views upscale these tiles.
-
-The original **Esri World Imagery** remains a separate, unpinned option. The supplied screenshots are visual references only, not georeferenced assets; the interactive alternatives are not guaranteed to be pixel-identical. A NASA Blue Marble sample tile was inspected during development, but the EOX layer has not been visually verified against the reference in this sandbox. The physical layer is EOX's rendered terrain, not the exact original Natural Earth raster.
-
-Source references:
-- NASA Blue Marble relief/bathymetry tile dataset and sample: https://github.com/freetiler/nasa-bluemarble
-- NASA GIBS WMTS example: https://egghead.io/lessons/react-change-the-map-tile-service-of-a-react-leaflet-tilelayer-basemap-to-nasa-gibs-blue-marble
-- EOX layer identifiers: https://tiles.maps.eox.at/wmts/1.0.0/WMTSCapabilities.xml
-- EOX data sources and attribution requirements: https://maps.eox.at/#data
-
-Both are searchable and use the existing preview, prefetch, and image-export pipeline. Provider attribution is shown on the map. Check each provider's terms before redistributing imagery.
+The export/CORS fixes, adjustable world seam, custom dimensions and optional GPU safety settings are unchanged. Provider-native tile limits still determine available source detail, regardless of output pixel dimensions. Natural Earth coastline data remains in use for land/ocean masks; it is not a pinned basemap.
 
 ## Local development
 
